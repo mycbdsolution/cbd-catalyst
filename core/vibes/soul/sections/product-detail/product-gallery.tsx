@@ -43,7 +43,7 @@ export function ProductGallery({
   images,
   className,
   thumbnailLabel = 'View image number',
-  aspectRatio = '4:5',
+  aspectRatio = '1:1',
   fit = 'contain',
 }: ProductGalleryProps) {
   const [previewImage, setPreviewImage] = useState(0);
@@ -96,7 +96,7 @@ export function ProductGallery({
               <Image
                 alt={image.alt}
                 className={clsx(
-                  'bg-[var(--product-gallery-image-background,hsl(var(--contrast-100)))]',
+                  'blake',
                   {
                     contain: 'object-contain',
                     cover: 'object-cover',
@@ -132,7 +132,7 @@ export function ProductGallery({
             >
               <Image
                 alt={image.alt}
-                className="bg-[var(--product-gallery-image-background,hsl(var(--contrast-100)))] object-cover"
+                className="object-cover"
                 fill
                 sizes="(min-width: 28rem) 4rem, 3rem"
                 src={image.src}

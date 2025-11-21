@@ -33,6 +33,13 @@ const CompareProductsQuery = graphql(`
               altText
             }
             path
+            customFields(first: 1) {
+        edges {
+          node {
+            value
+          }
+        }
+      }
           }
         }
       }

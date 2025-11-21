@@ -105,7 +105,7 @@ export function ProductDetail<F extends Field>({
                       {product.subtitle}
                     </p>
                   )}
-                  <h1 className="mb-3 mt-2 font-[family-name:var(--product-detail-title-font-family,var(--font-family-heading))] text-2xl font-medium leading-none @xl:mb-4 @xl:text-3xl @4xl:text-4xl">
+                  <h1 className="mb-3 mt-2 font-[family-name:var(--product-detail-title-font-family,var(--font-family-heading))] text-2xl font-semibold leading-none @xl:mb-4 @xl:text-4xl @4xl:text-5xl">
                     {product.title}
                   </h1>
                   <div className="group/product-rating">

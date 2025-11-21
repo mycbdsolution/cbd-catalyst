@@ -83,6 +83,13 @@ export default async function Product({ params, searchParams }: Props) {
     return notFound();
   }
 
+
+// BLAKE CUSTOM - NEXT 2 LINES
+      const customFields = removeEdgesAndNodes(baseProduct.customFields);
+      const productDisplayName = customFields.slice(0, 1).map((customField) => customField.value);
+
+// END BLAKE CUSTOM
+
   const streamableProduct = Streamable.from(async () => {
     const options = await searchParams;
 
@@ -359,7 +366,7 @@ export default async function Product({ params, searchParams }: Props) {
           prefetch={true}
           product={{
             id: baseProduct.entityId.toString(),
-            title: baseProduct.name,
+            title: productDisplayName.toString(),
             description: <div dangerouslySetInnerHTML={{ __html: baseProduct.description }} />,
             href: baseProduct.path,
             images: streamableImages,

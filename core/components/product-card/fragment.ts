@@ -19,6 +19,13 @@ export const ProductCardFragment = graphql(
         numberOfReviews
         averageRating
       }
+      customFields(first: 1) {
+        edges {
+          node {
+            value
+          }
+        }
+      }
       ...PricingFragment
     }
   `,

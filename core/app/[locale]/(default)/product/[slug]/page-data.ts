@@ -181,6 +181,15 @@ const ProductQuery = graphql(
           reviewSummary {
             averageRating
           }
+             customFields {
+            edges {
+              node {
+                entityId
+                name
+                value
+              }
+            }
+          }
           description
           ...ProductOptionsFragment
         }
