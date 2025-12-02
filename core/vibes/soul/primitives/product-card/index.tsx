@@ -138,7 +138,7 @@ export function ProductCard({
             
             <span
               className={clsx(
-                'block mb-4 font-normal leading-tight text-xl',
+                'block mb-4 font-normal leading-tight text-lg',
                 {
                   light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
                   dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',

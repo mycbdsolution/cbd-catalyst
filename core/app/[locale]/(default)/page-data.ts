@@ -61,6 +61,13 @@ const HomePageQuery = graphql(
             }
           }
         }
+            bestSellingProducts(first: 4) {
+          edges {
+            node {
+              ...FeaturedProductsCarouselFragment
+            }
+          }
+        }
       }
     }
   `,

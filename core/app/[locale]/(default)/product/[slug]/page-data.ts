@@ -174,9 +174,11 @@ const ProductQuery = graphql(
           entityId
           name
           description
+          warranty
           path
           brand {
             name
+            path
           }
           reviewSummary {
             averageRating
@@ -236,7 +238,16 @@ const StreamableProductQuery = graphql(
             altText
             url: urlTemplate(lossy: true)
           }
+            videos {
+              edges {
+                node {
+                  title
+                  url
+                }
+              }
+            }
           sku
+          upc
           weight {
             value
             unit
@@ -305,7 +316,7 @@ const ProductPricingAndRelatedProductsQuery = graphql(
           useDefaultOptionSelections: $useDefaultOptionSelections
         ) {
           ...PricingFragment
-          relatedProducts(first: 8) {
+          relatedProducts(first: 3) {
             edges {
               node {
                 ...FeaturedProductsCarouselFragment

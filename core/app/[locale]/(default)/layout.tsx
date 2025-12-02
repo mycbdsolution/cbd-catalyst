@@ -1,7 +1,8 @@
 import { setRequestLocale } from 'next-intl/server';
 import { PropsWithChildren } from 'react';
 
-import { Footer } from '~/components/footer';
+import { FooterCustom } from '~/components/custom/footer';
+import FooterFeatures from '~/components/custom/footer/footer-features';
 import { Header } from '~/components/header';
 
 interface Props extends PropsWithChildren {
@@ -19,7 +20,8 @@ export default async function DefaultLayout({ params, children }: Props) {
 
       <main>{children}</main>
 
-      <Footer />
+      <FooterFeatures />
+      <FooterCustom />
     </>
   );
 }

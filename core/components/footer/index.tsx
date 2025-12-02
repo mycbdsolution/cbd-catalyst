@@ -21,20 +21,26 @@ import { logoTransformer } from '~/data-transformers/logo-transformer';
 import { getPreferredCurrencyCode } from '~/lib/currency';
 
 import { FooterFragment, FooterSectionsFragment } from './fragment';
-import { AmazonIcon } from './payment-icons/amazon';
+
+import { GooglePayIcon } from './payment-icons/google-pay';
 import { AmericanExpressIcon } from './payment-icons/american-express';
 import { ApplePayIcon } from './payment-icons/apple-pay';
 import { MastercardIcon } from './payment-icons/mastercard';
-import { PayPalIcon } from './payment-icons/paypal';
+import { DiscoverIcon } from './payment-icons/discover';
 import { VisaIcon } from './payment-icons/visa';
 
+
+
+
 const paymentIcons = [
-  <AmazonIcon key="amazon" />,
-  <AmericanExpressIcon key="americanExpress" />,
   <ApplePayIcon key="apple" />,
+  <GooglePayIcon key="google" />,
+  <AmericanExpressIcon key="americanExpress" />,
+  <DiscoverIcon key="discover" />,
   <MastercardIcon key="mastercard" />,
-  <PayPalIcon key="paypal" />,
   <VisaIcon key="visa" />,
+
+
 ];
 
 const socialIcons: Record<string, { icon: JSX.Element }> = {
@@ -77,7 +83,7 @@ export const Footer = async () => {
 
   const logo = data.settings ? logoTransformer(data.settings) : '';
 
-  const copyright = `© ${new Date().getFullYear()} ${data.settings?.storeName} – Powered by BigCommerce`;
+  const copyright = `© ${new Date().getFullYear()} ${data.settings?.storeName}`;
 
   const contactInformation = data.settings?.contact
     ? {

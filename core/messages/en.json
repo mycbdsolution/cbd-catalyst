@@ -21,16 +21,25 @@
       }
     },
     "FeaturedProducts": {
-      "title": "Featured collection",
+      "title": "New & Featured",
       "description": "Explore our top picks in this featured collection. Find the perfect gift or treat yourself!",
-      "cta": "View more",
+      "cta": "Shop all",
       "emptyStateTitle": "No products found",
       "emptyStateSubtitle": "Try browsing our complete catalog of products."
     },
     "NewestProducts": {
       "title": "New arrivals",
       "description": "Our latest products are here. Check out what's new in store.",
-      "cta": "See all",
+      "cta": "Shop all",
+      "emptyStateTitle": "No products found",
+      "emptyStateSubtitle": "Try browsing our complete catalog of products.",
+      "previousProducts": "Previous products",
+      "nextProducts": "Next products"
+    },
+      "BestSellingProducts": {
+      "title": "Best sellers",
+      "description": "Our best selling products are here. Check out the best sellers.",
+      "cta": "Shop all",
       "emptyStateTitle": "No products found",
       "emptyStateSubtitle": "Try browsing our complete catalog of products.",
       "previousProducts": "Previous products",
@@ -499,9 +508,9 @@
       "giftCertificates": "Gift certificates"
     },
     "Subscribe": {
-      "title": "Sign up for our newsletter",
+      "title": "Want Discount Codes?",
       "placeholder": "Enter your email",
-      "description": "Stay up to date with the latest news and offers from our store.",
+      "description": "Exclusive discounts and offers directly to your inbox. No Spam. Ever.",
       "success": "Thank you for your interest! Newsletter feature is coming soon!"
     },
     "ConsentManager": {

@@ -5,7 +5,7 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { SearchParams } from 'nuqs/server';
 
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
-import { FeaturedProductCarousel } from '@/vibes/soul/sections/featured-product-carousel';
+import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { ProductDetail } from '@/vibes/soul/sections/product-detail';
 import { getSessionCustomerAccessToken } from '~/auth';
 import { pricesTransformer } from '~/data-transformers/prices-transformer';
@@ -27,6 +27,11 @@ import {
   getProductPricingAndRelatedProducts,
   getStreamableProduct,
 } from './page-data';
+
+// BLAKE CUSTOM - NEXT 3 LINES
+import { Link } from '~/components/link';
+import {contentAssetUrl} from '~/lib/store-assets';
+import { ExternalLink } from 'lucide-react';
 
 interface Props {
   params: Promise<{ slug: string; locale: string }>;
@@ -156,7 +161,8 @@ export default async function Product({ params, searchParams }: Props) {
   const streamableImages = Streamable.from(async () => {
     const product = await streamableProduct;
 
-    const images = removeEdgesAndNodes(product.images)
+    // BLAKE TEMP FIX - USED SLICE METHOD ON IMAGES TO REMOVE THUMBNAIL
+    const images = removeEdgesAndNodes(product.images).slice(1)
       .filter((image) => image.url !== product.defaultImage?.url)
       .map((image) => ({
         src: image.url,
@@ -249,24 +255,30 @@ export default async function Product({ params, searchParams }: Props) {
     const product = await streamableProduct;
 
     const customFields = removeEdgesAndNodes(product.customFields);
+     const labResults = customFields.slice(-1).map((customField) => customField.value).join('');
+
+     const bullets = product.warranty ? product.warranty.split('\n').filter((line) => line.trim() !== '') : [];
 
     const specifications = [
-      {
-        name: t('ProductDetails.Accordions.sku'),
+        {
+        name: 'UPC',
+        value: product.upc,
+      },
+         {
+        name: 'SKU',
         value: product.sku,
       },
-      {
-        name: t('ProductDetails.Accordions.weight'),
-        value: `${product.weight?.value} ${product.weight?.unit}`,
-      },
-      {
-        name: t('ProductDetails.Accordions.condition'),
-        value: product.condition,
-      },
-      ...customFields.map((field) => ({
+       ...customFields.slice(1,-1).map((field) => ({
         name: field.name,
         value: field.value,
       })),
+        {
+              name: 'Lab Results',
+               value: <Link href={contentAssetUrl(labResults)}
+               target="_blank"
+              >
+                View certificate of analysis <ExternalLink className="inline" /></Link>,
+            },
     ];
 
     return [
@@ -338,7 +350,10 @@ export default async function Product({ params, searchParams }: Props) {
       id: extendedProduct.entityId,
       name: extendedProduct.name,
       sku: extendedProduct.sku,
+      upc: extendedProduct.upc,
       brand: extendedProduct.brand?.name ?? '',
+      brandPath: extendedProduct.brand?.path ?? '',
+      bullets: extendedProduct.warranty ? extendedProduct.warranty.split('\n').filter((line) => line.trim() !== '') : [],
       price: pricingProduct?.prices?.price.value ?? 0,
       currency: pricingProduct?.prices?.price.currencyCode ?? '',
     };
@@ -367,11 +382,13 @@ export default async function Product({ params, searchParams }: Props) {
           product={{
             id: baseProduct.entityId.toString(),
             title: productDisplayName.toString(),
+            bullets: <div dangerouslySetInnerHTML={{ __html: baseProduct.warranty }} />,
             description: <div dangerouslySetInnerHTML={{ __html: baseProduct.description }} />,
             href: baseProduct.path,
             images: streamableImages,
             price: streamablePrices,
             subtitle: baseProduct.brand?.name,
+            brandPath: baseProduct.brand?.path,
             rating: baseProduct.reviewSummary.averageRating,
             accordions: streameableAccordions,
             minQuantity: streamableMinQuantity,
@@ -383,16 +400,15 @@ export default async function Product({ params, searchParams }: Props) {
         />
       </ProductAnalyticsProvider>
 
-      <FeaturedProductCarousel
-        cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
-        emptyStateSubtitle={t('RelatedProducts.browseCatalog')}
-        emptyStateTitle={t('RelatedProducts.noRelatedProducts')}
-        nextLabel={t('RelatedProducts.nextProducts')}
-        previousLabel={t('RelatedProducts.previousProducts')}
-        products={streameableRelatedProducts}
-        scrollbarLabel={t('RelatedProducts.scrollbar')}
-        title={t('RelatedProducts.title')}
-      />
+  
+
+         <FeaturedProductList
+              cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
+              emptyStateSubtitle={t('RelatedProducts.browseCatalog')}
+              emptyStateTitle={t('RelatedProducts.noRelatedProducts')}
+              products={streameableRelatedProducts}
+              title={t('RelatedProducts.title')}
+            />
 
       <Reviews
         productId={productId}

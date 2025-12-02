@@ -9,6 +9,7 @@ interface Review {
   id: string;
   rating: number;
   review: string;
+  title: string;
   name: string;
   date: string;
 }
@@ -142,13 +143,14 @@ export function Reviews({
             sidebarSize="medium"
           >
             <div className="flex-1 border-t border-contrast-100">
-              {reviews.map(({ id, rating, review, name, date }) => {
+              {reviews.map(({ id, rating, title, review, name, date }) => {
                 return (
                   <div className="border-b border-contrast-100 py-6" key={id}>
                     <Rating rating={rating} />
-                    <p className="mt-5 text-lg font-semibold text-foreground">{name}</p>
-                    <p className="mb-8 mt-2 leading-normal text-contrast-500">{review}</p>
-                    <p className="text-sm text-contrast-500">{date}</p>
+                    <p className="mt-5 text-lg font-semibold text-foreground">{title}</p>
+                    <p className="mb-4 mt-2 leading-normal text-contrast-500">{review}</p>
+                     <p className="mt-5 text-sm text-contrast-400">{name}</p>
+                    <p className="text-xs text-contrast-300">{date}</p>
                   </div>
                 );
               })}

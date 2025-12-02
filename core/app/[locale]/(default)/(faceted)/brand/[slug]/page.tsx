@@ -134,7 +134,7 @@ export default async function Brand(props: Props) {
 
     return products.map((product) => ({
       id: product.entityId.toString(),
-      title: product.name,
+      title: product.customFields.edges?.[0]?.node.value ?? product.name,
       href: product.path,
       image: product.defaultImage
         ? { src: product.defaultImage.url, alt: product.defaultImage.altText }
@@ -196,7 +196,7 @@ export default async function Brand(props: Props) {
 
     return products.map((product) => ({
       id: product.entityId.toString(),
-      title: product.name,
+      title: product.customFields.edges?.[0]?.node.value ?? product.name,
       image: product.defaultImage
         ? { src: product.defaultImage.url, alt: product.defaultImage.altText }
         : undefined,

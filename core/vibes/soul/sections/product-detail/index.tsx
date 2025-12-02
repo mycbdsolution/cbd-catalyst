@@ -11,6 +11,8 @@ import { ProductGallery } from '@/vibes/soul/sections/product-detail/product-gal
 import { ProductDetailForm, ProductDetailFormAction } from './product-detail-form';
 import { Field } from './schema';
 
+import { Link } from '~/components/link';
+
 interface ProductDetailProduct {
   id: string;
   title: string;
@@ -18,9 +20,12 @@ interface ProductDetailProduct {
   images: Streamable<Array<{ src: string; alt: string }>>;
   price?: Streamable<Price | null>;
   subtitle?: string;
+  brandPath?: string;
   badge?: string;
   rating?: Streamable<number | null>;
   summary?: Streamable<string>;
+  bullets?: Streamable<string | ReactNode | null>;
+  
   description?: Streamable<string | ReactNode | null>;
   accordions?: Streamable<
     Array<{
@@ -92,6 +97,7 @@ export function ProductDetail<F extends Field>({
         <Stream fallback={<ProductDetailSkeleton />} value={streamableProduct}>
           {(product) =>
             product && (
+                  <div>
               <div className="grid grid-cols-1 items-stretch gap-x-8 gap-y-8 @2xl:grid-cols-2 @5xl:gap-x-12">
                 <div className="group/product-gallery hidden @2xl:block">
                   <Stream fallback={<ProductGallerySkeleton />} value={product.images}>
@@ -100,12 +106,18 @@ export function ProductDetail<F extends Field>({
                 </div>
                 {/* Product Details */}
                 <div className="text-[var(--product-detail-primary-text,hsl(var(--foreground)))]">
-                  {Boolean(product.subtitle) && (
-                    <p className="font-[family-name:var(--product-detail-subtitle-font-family,var(--font-family-mono))] text-sm uppercase">
-                      {product.subtitle}
-                    </p>
+                    {Boolean(product.subtitle) && product.brandPath && (
+                    <Link href={product.brandPath} className="text-gray-300">
+                      <p className="font-[family-name:var(--product-detail-subtitle-font-family,var(--font-family-mono))] text-sm text-primary uppercase underline">
+                        {product.subtitle}
+                      </p>
+                    </Link>
                   )}
-                  <h1 className="mb-3 mt-2 font-[family-name:var(--product-detail-title-font-family,var(--font-family-heading))] text-2xl font-semibold leading-none @xl:mb-4 @xl:text-4xl @4xl:text-5xl">
+
+
+                 
+
+                  <h1 className="mb-3 mt-2 font-[family-name:var(--product-detail-title-font-family,var(--font-family-heading))] text-2xl font-semibold tracking-tighter leading-none @xl:mb-4 @xl:text-4xl @4xl:text-5xl">
                     {product.title}
                   </h1>
                   <div className="group/product-rating">
@@ -149,6 +161,20 @@ export function ProductDetail<F extends Field>({
                       }
                     </Stream>
                   </div>
+
+                      <div className="group/product-bullets">
+                    <Stream fallback={<ProductBulletsSkeleton />} value={product.bullets}>
+                      {(bullets) =>
+                        Boolean(bullets) && (
+                          <div className="prose prose-ul:mt-0 prose-ul:mb-1 prose-ul:border-t prose-ul:border-b prose-ul:pt-4 prose-ul:pb-1 prose-ul:pl-0 prose-li:mt-0 prose-li:mb-0 text-gray-900">
+                            {bullets}
+                          </div>
+                        )
+                      }
+                    </Stream>
+
+                  </div>
+
                   <div className="group/product-detail-form">
                     <Stream
                       fallback={<ProductDetailFormSkeleton />}
@@ -179,7 +205,15 @@ export function ProductDetail<F extends Field>({
                       )}
                     </Stream>
                   </div>
-                  <div className="group/product-description">
+                
+                  <h2 className="sr-only">{additionalInformationTitle}</h2>
+          
+                </div>
+              </div>
+
+        <div className="mx-auto px-4 py-10 @xl:px-6 @xl:py-14 @4xl:px-8 @4xl:py-20 max-w-[var(--section-max-width-2xl,1536px)]">
+              <div className="group/product-description">
+              <h2 className="text-2xl font-bold leading-none tracking-tighter text-gray-900 @2xl:text-3xl @4xl:text-5xl">Product Info</h2>
                     <Stream fallback={<ProductDescriptionSkeleton />} value={product.description}>
                       {(description) =>
                         Boolean(description) && (
@@ -190,8 +224,7 @@ export function ProductDetail<F extends Field>({
                       }
                     </Stream>
                   </div>
-                  <h2 className="sr-only">{additionalInformationTitle}</h2>
-                  <div className="group/product-accordion">
+                          <div className="group/product-accordion">
                     <Stream fallback={<ProductAccordionsSkeleton />} value={product.accordions}>
                       {(accordions) =>
                         accordions && (
@@ -213,13 +246,18 @@ export function ProductDetail<F extends Field>({
                       }
                     </Stream>
                   </div>
-                </div>
-              </div>
+           </div>
+
+
+        </div>
+              
             )
           }
         </Stream>
       </div>
     </section>
+
+    
   );
 }
 
@@ -269,6 +307,21 @@ function ProductSummarySkeleton() {
       {Array.from({ length: 3 }).map((_, idx) => (
         <Skeleton.Box className="h-2.5 w-full" key={idx} />
       ))}
+    </Skeleton.Root>
+  );
+}
+
+
+function ProductBulletsSkeleton() {
+  return (
+    <Skeleton.Root
+      className="flex w-full flex-col gap-3.5 pb-6 group-has-[[data-pending]]/product-bullets:animate-pulse"
+      pending
+    >
+      {Array.from({ length: 2 }).map((_, idx) => (
+        <Skeleton.Box className="h-2.5 w-full" key={idx} />
+      ))}
+      <Skeleton.Box className="h-2.5 w-3/4" />
     </Skeleton.Root>
   );
 }

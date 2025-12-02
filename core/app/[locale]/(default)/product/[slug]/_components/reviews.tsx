@@ -36,7 +36,7 @@ const ReviewsQuery = graphql(
           reviewSummary {
             averageRating
           }
-          reviews(first: $first, after: $after, before: $before, last: $last) {
+          reviews(first: $first, after: $after, before: $before, last: $last, sort: NEWEST) {
             pageInfo {
               ...PaginationFragment
             }
@@ -112,6 +112,7 @@ export const Reviews = async ({
       id: review.entityId.toString(),
       rating: review.rating,
       review: review.text,
+      title: review.title,
       name: review.author.name,
       date: format.dateTime(new Date(review.createdAt.utc), {
         year: 'numeric',

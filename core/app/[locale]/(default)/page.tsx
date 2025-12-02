@@ -47,12 +47,20 @@ export default async function Home({ params }: Props) {
     return productCardTransformer(newestProducts, format);
   });
 
+    const streamableBestSellingProducts = Streamable.from(async () => {
+    const data = await streamablePageData;
+
+    const bestSellingProducts = removeEdgesAndNodes(data.site.bestSellingProducts);
+
+    return productCardTransformer(bestSellingProducts, format);
+  });
+
   return (
     <>
       <Slideshow />
 
       <FeaturedProductList
-        cta={{ label: t('FeaturedProducts.cta'), href: '/shop-all' }}
+        cta={{ label: t('FeaturedProducts.cta'), href: '/shop/?sort=newest' }}
         description={t('FeaturedProducts.description')}
         emptyStateSubtitle={t('FeaturedProducts.emptyStateSubtitle')}
         emptyStateTitle={t('FeaturedProducts.emptyStateTitle')}
@@ -60,16 +68,15 @@ export default async function Home({ params }: Props) {
         title={t('FeaturedProducts.title')}
       />
 
-      <FeaturedProductCarousel
-        cta={{ label: t('NewestProducts.cta'), href: '/shop-all/?sort=newest' }}
-        description={t('NewestProducts.description')}
-        emptyStateSubtitle={t('NewestProducts.emptyStateSubtitle')}
-        emptyStateTitle={t('NewestProducts.emptyStateTitle')}
-        nextLabel={t('NewestProducts.nextProducts')}
-        previousLabel={t('NewestProducts.previousProducts')}
-        products={streamableNewestProducts}
-        title={t('NewestProducts.title')}
+       <FeaturedProductList
+        cta={{ label: t('BestSellingProducts.cta'), href: '/shop/?sort=best_selling' }}
+        description={t('BestSellingProducts.description')}
+        emptyStateSubtitle={t('BestSellingProducts.emptyStateSubtitle')}
+        emptyStateTitle={t('BestSellingProducts.emptyStateTitle')}
+        products={streamableBestSellingProducts}
+        title={t('BestSellingProducts.title')}
       />
+
 
       <Subscribe />
     </>

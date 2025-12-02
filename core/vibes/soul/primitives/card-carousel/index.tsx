@@ -33,7 +33,7 @@ export interface CardCarouselProps {
 
 export function CardCarousel({
   cards: streamableCards,
-  aspectRatio = '5:6',
+  aspectRatio = '1:1',
   textColorScheme,
   iconColorScheme,
   carouselColorScheme,

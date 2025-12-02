@@ -96,8 +96,9 @@ export function ProductList({
             maxCompareLimitMessage={maxCompareLimitMessage}
             maxItems={maxItems}
           >
-            <div className={clsx('w-full @container', className)}>
-              <div className="mx-auto grid grid-cols-1 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-10 @2xl:gap-y-10">
+            <div className="w-full @container">
+                <div className={clsx('mx-auto grid grid-cols-1 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-10 @2xl:gap-y-12', className)}>
+  
                 {products.map((product) => (
                   <ProductCard
                     aspectRatio={aspectRatio}

@@ -108,6 +108,7 @@ const config = {
           highlight: 'color-mix(in oklab, hsl(var(--info)), white 75%)',
           shadow: 'color-mix(in oklab, hsl(var(--info)), black 75%)',
         },
+        gold: '#FFE000',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         contrast: {
