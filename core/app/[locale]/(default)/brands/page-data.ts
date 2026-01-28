@@ -18,6 +18,11 @@ const BrandsPageQuery = graphql(`
              url: urlTemplate(lossy: true)
               altText
             }
+           products(hideOutOfStock: true) {
+            collectionInfo {
+              totalItems
+            }
+          }
           }
         }
       }
@@ -40,6 +45,14 @@ export const getBrands = cache(async (): Promise<Brand[]> => {
 
   const brands = removeEdgesAndNodes(response.data.site?.brands) ?? [];
 
+  const brandsWithProducts = brands.filter(
+    (brand) => (brand.products?.collectionInfo?.totalItems ?? 0) > 0,
+  );
+
+  const sortedBrands = [...brandsWithProducts].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+
   const normalizeUrl = (url?: string | null) => {
     if (!url) return null;
 
@@ -50,7 +63,8 @@ export const getBrands = cache(async (): Promise<Brand[]> => {
     return url;
   };
 
-  return brands.map((brand) => ({
+return sortedBrands.map((brand) => ({
+
     entityId: brand.entityId,
     name: brand.name,
     path: brand.path,

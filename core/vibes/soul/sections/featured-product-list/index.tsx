@@ -51,7 +51,7 @@ export function FeaturedProductList({
 <header className="font-[family-name:var(--featured-product-list-font-family,var(--font-family-body))]">
     
       <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold leading-none tracking-tighter text-gray-900 @2xl:text-3xl @4xl:text-5xl"> {title}</h2>
+          <h2 className="text-2xl font-bold leading-none tracking-tighter text-primary @2xl:text-3xl @4xl:text-5xl"> {title}</h2>
             {cta?.href != null && cta.href !== '' && cta.label !== '' && (
            <Link href={cta.href} className="text-sm font-medium text-primary @2xl:text-lg">
               {cta.label}

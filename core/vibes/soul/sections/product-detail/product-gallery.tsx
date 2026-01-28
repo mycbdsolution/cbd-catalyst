@@ -67,7 +67,7 @@ export function ProductGallery({
   };
 
   return (
-    <div className={clsx('sticky top-4 flex flex-col gap-2 @2xl:flex-row', className)}>
+    <div className={clsx('flex flex-col gap-2', className)}>
       <div
         className="w-full overflow-hidden rounded-xl @xl:rounded-2xl @2xl:order-2"
         ref={emblaRef}
@@ -111,7 +111,7 @@ export function ProductGallery({
           ))}
         </div>
       </div>
-      <div className="flex max-w-full shrink-0 flex-row gap-2 overflow-x-auto p-1 @2xl:order-1 @2xl:flex-col">
+      <div className="flex max-w-full shrink-0 flex-row gap-2 overflow-x-auto order-2 justify-center p-1 -mt-16">
         {images.map((image, index) => (
           <button
             aria-label={`${thumbnailLabel} ${index + 1}`}

@@ -70,17 +70,17 @@ export const ButtonRadioGroup = React.forwardRef<
             <RadioGroupPrimitive.Item
               aria-label={option.label}
               className={clsx(
-                'data-disabled:pointer-events-none data-disabled:opacity-50 h-12 whitespace-nowrap rounded-full border px-4 font-body text-sm font-normal leading-normal transition-colors focus-visible:outline-0 focus-visible:ring-2',
+                'data-disabled:pointer-events-none data-disabled:opacity-50 h-12 whitespace-nowrap rounded-full border px-6 font-body text-sm font-normal leading-normal transition-colors focus-visible:outline-0 focus-visible:ring-2',
                 {
                   light:
-                    'border-[var(--button-radio-group-light-unchecked-border,hsl(var(--contrast-100)))] focus-visible:ring-[var(--button-radio-group-light-focus,hsl(var(--primary)))] data-[state=checked]:bg-[var(--button-radio-group-light-checked-background,hsl(var(--foreground)))] data-[state=unchecked]:bg-[var(--button-radio-group-light-unchecked-background,hsl(var(--background)))] data-[state=checked]:text-[var(--button-radio-group-light-checked-text,hsl(var(--background)))] data-[state=unchecked]:text-[var(--button-radio-group-light-unchecked-text,hsl(var(--foreground)))] data-[state=unchecked]:hover:border-[var(--button-radio-group-light-unchecked-border-hover,hsl(var(--contrast-200)))] data-[state=unchecked]:hover:bg-[var(--button-radio-group-light-unchecked-background-hover,hsl(var(--contrast-100)))]',
+                    'border-[var(--button-radio-group-light-unchecked-border,hsl(var(--contrast-100)))] focus-visible:ring-[var(--button-radio-group-light-focus,hsl(var(--primary)))] data-[state=checked]:bg-gray-100 data-[state=unchecked]:bg-[var(--button-radio-group-light-unchecked-background,hsl(var(--background)))] data-[state=checked]:text-gray-500 data-[state=unchecked]:text-[var(--button-radio-group-light-unchecked-text,hsl(var(--foreground)))] data-[state=unchecked]:hover:border-[var(--button-radio-group-light-unchecked-border-hover,hsl(var(--contrast-200)))] data-[state=unchecked]:hover:bg-[var(--button-radio-group-light-unchecked-background-hover,hsl(var(--contrast-100)))]',
                   dark: 'border-[var(--button-radio-group-dark-unchecked-border,hsl(var(--contrast-500)))] focus-visible:ring-[var(--button-radio-group-dark-focus,hsl(var(--primary)))] data-[state=checked]:bg-[var(--button-radio-group-dark-checked-background,hsl(var(--background)))] data-[state=unchecked]:bg-[var(--button-radio-group-dark-unchecked-background,hsl(var(--foreground)))] data-[state=checked]:text-[var(--button-radio-group-dark-checked-text,hsl(var(--foreground)))] data-[state=unchecked]:text-[var(--button-radio-group-dark-checked-text,hsl(var(--background)))] data-[state=unchecked]:hover:border-[var(--button-radio-group-dark-unchecked-border-hover,hsl(var(--contrast-400)))] data-[state=unchecked]:hover:bg-[var(--button-radio-group-dark-unchecked-background-hover,hsl(var(--contrast-500)))]',
                 }[colorScheme],
                 {
                   light:
                     errors && errors.length > 0
                       ? 'data-[state=unchecked]:border-[var(--button-radio-group-light-border-error,hsl(var(--error)))]'
-                      : 'data-[state=checked]:border-[var(--button-radio-group-light-checked-background,hsl(var(--foreground)))]',
+                      : 'data-[state=checked]:border-gray-500',
                   dark:
                     errors && errors.length > 0
                       ? 'data-[state=unchecked]:border-[var(--button-radio-group-dark-border-error,hsl(var(--error)))]'

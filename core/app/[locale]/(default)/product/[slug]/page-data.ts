@@ -182,6 +182,7 @@ const ProductQuery = graphql(
           }
           reviewSummary {
             averageRating
+             numberOfReviews
           }
              customFields {
             edges {
@@ -316,7 +317,7 @@ const ProductPricingAndRelatedProductsQuery = graphql(
           useDefaultOptionSelections: $useDefaultOptionSelections
         ) {
           ...PricingFragment
-          relatedProducts(first: 3) {
+          relatedProducts(first: 4) {
             edges {
               node {
                 ...FeaturedProductsCarouselFragment

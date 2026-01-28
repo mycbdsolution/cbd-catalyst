@@ -26,12 +26,12 @@ export function SectionLayout({ className, children, containerSize = '2xl' }: Se
     <section className={clsx('overflow-hidden @container', className)}>
       <div
         className={clsx(
-          'mx-auto px-4 py-10 @xl:px-6 @xl:py-14 @4xl:px-8 @4xl:py-20',
+          'mx-auto px-4 py-10 @xl:px-6 @xl:py-14 @4xl:px-4 @4xl:py-20',
           {
             md: 'max-w-[var(--section-max-width-md,768px)]',
             lg: 'max-w-[var(--section-max-width-lg,1024px)]',
             xl: 'max-w-[var(--section-max-width-xl,1280px)]',
-            '2xl': 'max-w-[var(--section-max-width-2xl,1536px)]',
+            '2xl': 'max-w-[var(--section-max-width-2xl,1280px)]',
             full: 'max-w-none',
           }[containerSize],
         )}

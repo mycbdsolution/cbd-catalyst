@@ -56,7 +56,7 @@ export function BrandsList({ title, description, brands }: Props) {
 
               </div>
 
-              <p className="mt-3 text-center text-base font-medium text-foreground transition group-hover:text-primary">
+              <p className="mt-3 text-center text-sm font-normal text-gray-500 transition group-hover:text-primary">
                 {brand.name}
               </p>
             </Link>

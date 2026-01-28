@@ -170,7 +170,7 @@ export function ProductDetailForm<F extends Field>({
             </FormStatus>
           ))}
           <div className="flex gap-x-3 pt-3">
-            <NumberInput
+            <NumberInput className="hidden"
               aria-label={quantityLabel}
               decrementLabel={decrementLabel}
               incrementLabel={incrementLabel}
@@ -197,7 +197,7 @@ function SubmitButton({ children, disabled }: { children: ReactNode; disabled?: 
 
   return (
     <Button
-      className="w-auto @xl:w-56"
+      className="w-full @xl:w-80"
       disabled={disabled}
       loading={pending}
       size="medium"

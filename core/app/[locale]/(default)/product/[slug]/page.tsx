@@ -7,6 +7,7 @@ import { SearchParams } from 'nuqs/server';
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { ProductDetail } from '@/vibes/soul/sections/product-detail';
+import { BrandDescription } from '@/vibes/soul/sections/custom/brand-description';
 import { getSessionCustomerAccessToken } from '~/auth';
 import { pricesTransformer } from '~/data-transformers/prices-transformer';
 import { productCardTransformer } from '~/data-transformers/product-card-transformer';
@@ -18,8 +19,6 @@ import { ProductAnalyticsProvider } from './_components/product-analytics-provid
 import { ProductSchema } from './_components/product-schema';
 import { ProductViewed } from './_components/product-viewed';
 import { Reviews } from './_components/reviews';
-import { WishlistButton } from './_components/wishlist-button';
-import { WishlistButtonForm } from './_components/wishlist-button/form';
 import {
   getInventorySettingsQuery,
   getProduct,
@@ -32,6 +31,7 @@ import {
 import { Link } from '~/components/link';
 import {contentAssetUrl} from '~/lib/store-assets';
 import { ExternalLink } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 interface Props {
   params: Promise<{ slug: string; locale: string }>;
@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Product({ params, searchParams }: Props) {
   const { locale, slug } = await params;
   const customerAccessToken = await getSessionCustomerAccessToken();
-  const detachedWishlistFormId = 'product-add-to-wishlist-form';
+
 
   setRequestLocale(locale);
 
@@ -277,25 +277,23 @@ export default async function Product({ params, searchParams }: Props) {
                value: <Link href={contentAssetUrl(labResults)}
                target="_blank"
               >
-                View certificate of analysis <ExternalLink className="inline" /></Link>,
+                View certificate of analysis <ArrowUpRight className="inline h-5" /></Link>,
             },
     ];
 
     return [
-      ...(specifications.length
+        ...(specifications.length
         ? [
             {
               title: t('ProductDetails.Accordions.specifications'),
               content: (
-                <div className="prose @container">
-                  <dl className="flex flex-col gap-4">
+                <div className="@container">
+                  <dl className="mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2 sm:gap-y-12 lg:max-w-none lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
                     {specifications.map((field, index) => (
-                      <div className="grid grid-cols-1 gap-2 @lg:grid-cols-2" key={index}>
-                        <dt>
-                          <strong>{field.name}</strong>
-                        </dt>
-                        <dd>{field.value}</dd>
-                      </div>
+                      <div className="border-t border-gray-200 pt-4" key={index}>
+                        <dt className="font-semibold font-mono text-gray-500 uppercase text-sm [word-spacing:-0.16rem]">{field.name}</dt>
+                        <dd className="mt-2">{field.value}</dd>
+                        </div>
                     ))}
                   </dl>
                 </div>
@@ -303,16 +301,7 @@ export default async function Product({ params, searchParams }: Props) {
             },
           ]
         : []),
-      ...(product.warranty
-        ? [
-            {
-              title: t('ProductDetails.Accordions.warranty'),
-              content: (
-                <div className="prose" dangerouslySetInnerHTML={{ __html: product.warranty }} />
-              ),
-            },
-          ]
-        : []),
+
     ];
   });
 
@@ -353,6 +342,7 @@ export default async function Product({ params, searchParams }: Props) {
       upc: extendedProduct.upc,
       brand: extendedProduct.brand?.name ?? '',
       brandPath: extendedProduct.brand?.path ?? '',
+      reviewsCount: extendedProduct.reviewSummary.numberOfReviews,
       bullets: extendedProduct.warranty ? extendedProduct.warranty.split('\n').filter((line) => line.trim() !== '') : [],
       price: pricingProduct?.prices?.price.value ?? 0,
       currency: pricingProduct?.prices?.price.currencyCode ?? '',
@@ -364,13 +354,7 @@ export default async function Product({ params, searchParams }: Props) {
       <ProductAnalyticsProvider data={streamableAnalyticsData}>
         <ProductDetail
           action={addToCart}
-          additionalActions={
-            <WishlistButton
-              formId={detachedWishlistFormId}
-              productId={productId}
-              productSku={streamableProductSku}
-            />
-          }
+  
           additionalInformationTitle={t('ProductDetails.additionalInformation')}
           ctaDisabled={streameableCtaDisabled}
           ctaLabel={streameableCtaLabel}
@@ -390,6 +374,7 @@ export default async function Product({ params, searchParams }: Props) {
             subtitle: baseProduct.brand?.name,
             brandPath: baseProduct.brand?.path,
             rating: baseProduct.reviewSummary.averageRating,
+            reviewsCount: baseProduct.reviewSummary.numberOfReviews,
             accordions: streameableAccordions,
             minQuantity: streamableMinQuantity,
             maxQuantity: streamableMaxQuantity,
@@ -400,7 +385,10 @@ export default async function Product({ params, searchParams }: Props) {
         />
       </ProductAnalyticsProvider>
 
-  
+          <BrandDescription
+              title="Brand Info"
+              name={baseProduct.brand?.name ?? ''}
+            />
 
          <FeaturedProductList
               cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
@@ -435,12 +423,7 @@ export default async function Product({ params, searchParams }: Props) {
         )}
       </Stream>
 
-      <WishlistButtonForm
-        formId={detachedWishlistFormId}
-        productId={productId}
-        productSku={streamableProductSku}
-        searchParams={searchParams}
-      />
+
     </>
   );
 }
