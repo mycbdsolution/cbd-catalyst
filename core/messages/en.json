@@ -21,25 +21,16 @@
       }
     },
     "FeaturedProducts": {
-      "title": "New & Featured",
+      "title": "Featured collection",
       "description": "Explore our top picks in this featured collection. Find the perfect gift or treat yourself!",
-      "cta": "Shop all",
+      "cta": "View more",
       "emptyStateTitle": "No products found",
       "emptyStateSubtitle": "Try browsing our complete catalog of products."
     },
     "NewestProducts": {
       "title": "New arrivals",
       "description": "Our latest products are here. Check out what's new in store.",
-      "cta": "Shop all",
-      "emptyStateTitle": "No products found",
-      "emptyStateSubtitle": "Try browsing our complete catalog of products.",
-      "previousProducts": "Previous products",
-      "nextProducts": "Next products"
-    },
-      "BestSellingProducts": {
-      "title": "Best sellers",
-      "description": "Our best selling products are here. Check out the best sellers.",
-      "cta": "Shop all",
+      "cta": "See all",
       "emptyStateTitle": "No products found",
       "emptyStateSubtitle": "Try browsing our complete catalog of products.",
       "previousProducts": "Previous products",
@@ -63,6 +54,8 @@
       "password": "Password",
       "invalidCredentials": "Your email address or password is incorrect. Try signing in again or reset your password",
       "somethingWentWrong": "Something went wrong. Please try again later.",
+      "passwordResetRequired": "Password reset required. Please check your email for instructions to reset your password.",
+      "invalidToken": "Your login link is invalid or has expired. Please try logging in again.",
       "CreateAccount": {
         "title": "New customer?",
         "accountBenefits": "Create an account with us and you'll be able to:",
@@ -206,7 +199,13 @@
       "currentPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm password",
-      "cta": "Update"
+      "cta": "Update",
+      "NewsletterSubscription": {
+        "title": "Marketing preferences",
+        "label": "Subscribe to our newsletter.",
+        "marketingPreferencesUpdated": "Marketing preferences have been updated successfully!",
+        "somethingWentWrong": "Something went wrong. Please try again later."
+      }
     }
   },
   "Wishlist": {
@@ -305,6 +304,8 @@
     "cartCombined": "We noticed you had items saved in a previous cart, so we've added them to your current cart for you.",
     "cartRestored": "You started a cart on another device, and we've restored it here so you can pick up where you left off.",
     "cartUpdateInProgress": "You have a cart update in progress. Are you sure you want to leave this page? Your changes may be lost.",
+    "originalPrice": "Original price was {price}.",
+    "currentPrice": "Current price is {price}.",
     "CheckoutSummary": {
       "title": "Summary",
       "subTotal": "Subtotal",
@@ -392,7 +393,8 @@
       "decreaseNumber": "Decrease number",
       "thumbnail": "View image number",
       "additionalInformation": "Additional information",
-      "currentStock": "Current stock: {quantity, number}",
+      "currentStock": "{quantity, number} in stock",
+      "backorderQuantity": "{quantity, number} will be on backorder",
       "Submit": {
         "addToCart": "Add to cart",
         "outOfStock": "Out of stock",
@@ -508,10 +510,14 @@
       "giftCertificates": "Gift certificates"
     },
     "Subscribe": {
-      "title": "Want Discount Codes?",
+      "title": "Sign up for our newsletter",
       "placeholder": "Enter your email",
-      "description": "Exclusive discounts and offers directly to your inbox. No Spam. Ever.",
-      "success": "Thank you for your interest! Newsletter feature is coming soon!"
+      "description": "Stay up to date with the latest news and offers from our store.",
+      "subscribedToNewsletter": "You have been subscribed to our newsletter!",
+      "Errors": {
+        "invalidEmail": "Please enter a valid email address.",
+        "somethingWentWrong": "Something went wrong. Please try again later."
+      }
     },
     "ConsentManager": {
       "Common": {
@@ -522,7 +528,8 @@
       },
       "CookieBanner": {
         "title": "We value your privacy",
-        "description": "This site uses cookies to improve your browsing experience, analyze site traffic, and show personalized content."
+        "description": "This site uses cookies to improve your browsing experience, analyze site traffic, and show personalized content.",
+        "privacyPolicy": "Privacy Policy"
       },
       "Dialog": {
         "title": "Privacy Settings",
@@ -550,6 +557,11 @@
           "description": "These cookies help us provide a better user experience and test new features."
         }
       }
+    },
+    "Price": {
+      "originalPrice": "Original price was {price}.",
+      "currentPrice": "Current price is {price}.",
+      "range": "Price from {minValue} to {maxValue}."
     }
   },
   "GiftCertificates": {
@@ -562,7 +574,7 @@
       "title": "Check balance",
       "description": "You can check the balance and get the information about your gift certificate by typing the code in the box below.",
       "inputLabel": "Code",
-      "inputPlaceholder": "Enter code",
+      "inputPlaceholder": "xxx-xxx-xxx-xxx",
       "purchasedDateLabel": "Purchased",
       "senderLabel": "From",
       "Errors": {
@@ -602,5 +614,8 @@
         }
       }
     }
+  },
+  "Form": {
+    "optional": "optional"
   }
 }

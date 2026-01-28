@@ -1,4 +1,5 @@
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
+import { Button } from '@/vibes/soul/primitives/button';
 import { CursorPagination, CursorPaginationInfo } from '@/vibes/soul/primitives/cursor-pagination';
 import { Rating } from '@/vibes/soul/primitives/rating';
 import { StickySidebarLayout } from '@/vibes/soul/sections/sticky-sidebar-layout';
@@ -17,7 +18,7 @@ interface Review {
 interface Props {
   reviews: Streamable<Review[]>;
   averageRating: Streamable<number>;
-  totalCount?: Streamable<string>;
+  totalCount?: Streamable<number>;
   paginationInfo?: Streamable<CursorPaginationInfo>;
   nextLabel?: Streamable<string>;
   previousLabel?: Streamable<string>;
@@ -49,7 +50,7 @@ export function Reviews({
   emptyStateMessage,
   reviewsLabel = 'Reviews',
   action,
-  formButtonLabel,
+  formButtonLabel = 'Write a review',
   formModalTitle,
   formSubmitLabel,
   formRatingLabel,
@@ -117,7 +118,7 @@ export function Reviews({
                   {(averageRating) => (
                     <>
                       <div className="mb-2 font-heading text-5xl leading-none tracking-tighter @2xl:text-6xl">
-                        {averageRating}
+                        {parseFloat(averageRating.toFixed(1))}
                       </div>
                       <Rating rating={averageRating} showRating={false} />
                     </>
@@ -125,7 +126,6 @@ export function Reviews({
                 </Stream>
                 <ReviewForm
                   action={action}
-                  formButtonLabel={formButtonLabel}
                   formEmailLabel={formEmailLabel}
                   formModalTitle={formModalTitle}
                   formNameLabel={formNameLabel}
@@ -137,6 +137,11 @@ export function Reviews({
                   streamableImages={streamableImages}
                   streamableProduct={streamableProduct}
                   streamableUser={streamableUser}
+                  trigger={
+                    <Button className="mx-auto mt-8" size="small" variant="tertiary">
+                      {formButtonLabel}
+                    </Button>
+                  }
                 />
               </>
             }
@@ -180,7 +185,7 @@ export function ReviewsEmptyState({
   reviewsLabel = 'Reviews',
   productId,
   action,
-  formButtonLabel,
+  formButtonLabel = 'Write a review',
   formModalTitle,
   formSubmitLabel,
   formRatingLabel,
@@ -218,7 +223,7 @@ export function ReviewsEmptyState({
           <div className="mb-2 font-heading text-5xl leading-none tracking-tighter @2xl:text-6xl">
             0
           </div>
-          <Rating rating={0} />
+          <Rating rating={0} showRating={false} />
         </>
       }
       sidebarSize="medium"
@@ -227,7 +232,6 @@ export function ReviewsEmptyState({
         <p className="text-center">{message}</p>
         <ReviewForm
           action={action}
-          formButtonLabel={formButtonLabel}
           formEmailLabel={formEmailLabel}
           formModalTitle={formModalTitle}
           formNameLabel={formNameLabel}
@@ -239,6 +243,11 @@ export function ReviewsEmptyState({
           streamableImages={streamableImages}
           streamableProduct={streamableProduct}
           streamableUser={streamableUser}
+          trigger={
+            <Button className="mx-auto mt-8" size="small" variant="tertiary">
+              {formButtonLabel}
+            </Button>
+          }
         />
       </div>
     </StickySidebarLayout>

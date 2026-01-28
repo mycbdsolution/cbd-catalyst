@@ -4,6 +4,7 @@ import { getFormProps, getInputProps, SubmissionResult, useForm } from '@conform
 import { parseWithZod } from '@conform-to/zod';
 import { clsx } from 'clsx';
 import { ArrowRight, GiftIcon, Minus, Plus, Trash2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   ComponentPropsWithoutRef,
   startTransition,
@@ -41,6 +42,7 @@ export interface CartLineItem {
   subtitle: string;
   quantity: number;
   price: string;
+  salePrice?: string;
   href?: string;
 }
 
@@ -450,7 +452,7 @@ export function CartClient<LineItem extends CartLineItem>({
               <div className="flex grow flex-col flex-wrap justify-between gap-y-2 @xl:flex-row">
                 <div className="flex w-full flex-1 flex-col @xl:w-1/2 @xl:pr-4">
                   <span className="font-medium">{lineItem.title}</span>
-                  <span className="text-[var(--cart-subtext-text,hsl(var(--contrast-300)))] contrast-more:text-[var(--cart-subtitle-text,hsl(var(--contrast-500)))]">
+                  <span className="text-[var(--cart-subtext-text,hsl(var(--contrast-400)))] contrast-more:text-[var(--cart-subtitle-text,hsl(var(--contrast-500)))]">
                     {lineItem.subtitle}
                   </span>
                 </div>
@@ -511,6 +513,8 @@ function CounterForm({
   action: (payload: FormData) => void;
   onSubmit: (formData: FormData) => void;
 }) {
+  const t = useTranslations('Cart');
+
   const [form, fields] = useForm({
     defaultValue: { id: lineItem.id },
     shouldValidate: 'onBlur',
@@ -558,8 +562,18 @@ function CounterForm({
     <form {...getFormProps(form)} action={action}>
       <input {...getInputProps(fields.id, { type: 'hidden' })} key={fields.id.id} />
       <div className="flex w-full flex-wrap items-center gap-x-5 gap-y-2">
-        <span className="font-medium @xl:ml-auto">{lineItem.price}</span>
-
+        {lineItem.salePrice && lineItem.salePrice !== lineItem.price ? (
+          <span className="font-medium @xl:ml-auto">
+            <span className="sr-only">{t('originalPrice', { price: lineItem.price })}</span>
+            <span aria-hidden="true" className="line-through">
+              {lineItem.price}
+            </span>{' '}
+            <span className="sr-only">{t('currentPrice', { price: lineItem.salePrice })}</span>
+            <span aria-hidden="true">{lineItem.salePrice}</span>
+          </span>
+        ) : (
+          <span className="font-medium @xl:ml-auto">{lineItem.price}</span>
+        )}
         {/* Counter */}
         <div className="flex items-center rounded-lg border border-[var(--cart-counter-border,hsl(var(--contrast-100)))]">
           <button
@@ -604,7 +618,6 @@ function CounterForm({
             />
           </button>
         </div>
-
         <button
           aria-label={deleteLabel}
           className="group -ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors duration-300 hover:bg-[var(--cart-button-background,hsl(var(--contrast-100)))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cart-focus,hsl(var(--primary)))] focus-visible:ring-offset-4"

@@ -27,7 +27,7 @@ export type SubmitReviewAction = Action<
 interface Props {
   productId: number;
   action: SubmitReviewAction;
-  formButtonLabel?: string;
+  trigger: React.ReactNode;
   formModalTitle?: string;
   formSubmitLabel?: string;
   formRatingLabel?: string;
@@ -43,7 +43,7 @@ interface Props {
 export const ReviewForm = ({
   productId,
   action,
-  formButtonLabel = 'Write a review',
+  trigger,
   formModalTitle = 'Write a review',
   formSubmitLabel = 'Submit',
   formRatingLabel = 'Rating',
@@ -107,11 +107,7 @@ export const ReviewForm = ({
       isOpen={isOpen}
       setOpen={setIsOpen}
       title={formModalTitle}
-      trigger={
-        <Button className="mx-auto mt-8" size="small" variant="tertiary">
-          {formButtonLabel}
-        </Button>
-      }
+      trigger={trigger}
     >
       <div className="flex flex-col gap-6 md:flex-row md:gap-8">
         <div className="shrink-0 md:w-48">
@@ -187,25 +183,25 @@ export const ReviewForm = ({
               value={typeof textControl.value === 'string' ? textControl.value : ''}
             />
             <Input
-              disabled={isAuthorDisabled}
               errors={fields.author.errors}
               label={formNameLabel}
               name={fields.author.name}
               onBlur={authorControl.blur}
               onChange={(e) => authorControl.change(e.currentTarget.value)}
               onFocus={authorControl.focus}
+              readOnly={isAuthorDisabled}
               required={fields.author.required}
               type="text"
               value={typeof authorControl.value === 'string' ? authorControl.value : ''}
             />
             <Input
-              disabled={isEmailDisabled}
               errors={fields.email.errors}
               label={formEmailLabel}
               name={fields.email.name}
               onBlur={emailControl.blur}
               onChange={(e) => emailControl.change(e.currentTarget.value)}
               onFocus={emailControl.focus}
+              readOnly={isEmailDisabled}
               required={fields.email.required}
               type="email"
               value={typeof emailControl.value === 'string' ? emailControl.value : ''}

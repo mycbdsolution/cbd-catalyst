@@ -1,7 +1,7 @@
 import { removeEdgesAndNodes } from '@bigcommerce/catalyst-client';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 
-import { Streamable } from '@/vibes/soul/lib/streamable';
+import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
 import { FeaturedProductCarousel } from '@/vibes/soul/sections/featured-product-carousel';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { getSessionCustomerAccessToken } from '~/auth';
@@ -36,7 +36,15 @@ export default async function Home({ params }: Props) {
 
     const featuredProducts = removeEdgesAndNodes(data.site.featuredProducts);
 
-    return productCardTransformer(featuredProducts, format);
+    const { defaultOutOfStockMessage, showOutOfStockMessage, showBackorderMessage } =
+      data.site.settings?.inventory ?? {};
+
+    return productCardTransformer(
+      featuredProducts,
+      format,
+      showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
+      showBackorderMessage,
+    );
   });
 
   const streamableNewestProducts = Streamable.from(async () => {
@@ -44,15 +52,23 @@ export default async function Home({ params }: Props) {
 
     const newestProducts = removeEdgesAndNodes(data.site.newestProducts);
 
-    return productCardTransformer(newestProducts, format);
+    const { defaultOutOfStockMessage, showOutOfStockMessage, showBackorderMessage } =
+      data.site.settings?.inventory ?? {};
+
+    return productCardTransformer(
+      newestProducts,
+      format,
+      showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
+      showBackorderMessage,
+    );
   });
 
-    const streamableBestSellingProducts = Streamable.from(async () => {
+  const streamableShowNewsletterSignup = Streamable.from(async () => {
     const data = await streamablePageData;
 
-    const bestSellingProducts = removeEdgesAndNodes(data.site.bestSellingProducts);
+    const { showNewsletterSignup } = data.site.settings?.newsletter ?? {};
 
-    return productCardTransformer(bestSellingProducts, format);
+    return showNewsletterSignup;
   });
 
   return (
@@ -60,7 +76,7 @@ export default async function Home({ params }: Props) {
       <Slideshow />
 
       <FeaturedProductList
-        cta={{ label: t('FeaturedProducts.cta'), href: '/shop/?sort=newest' }}
+        cta={{ label: t('FeaturedProducts.cta'), href: '/shop-all' }}
         description={t('FeaturedProducts.description')}
         emptyStateSubtitle={t('FeaturedProducts.emptyStateSubtitle')}
         emptyStateTitle={t('FeaturedProducts.emptyStateTitle')}
@@ -68,17 +84,20 @@ export default async function Home({ params }: Props) {
         title={t('FeaturedProducts.title')}
       />
 
-       <FeaturedProductList
-        cta={{ label: t('BestSellingProducts.cta'), href: '/shop/?sort=best_selling' }}
-        description={t('BestSellingProducts.description')}
-        emptyStateSubtitle={t('BestSellingProducts.emptyStateSubtitle')}
-        emptyStateTitle={t('BestSellingProducts.emptyStateTitle')}
-        products={streamableBestSellingProducts}
-        title={t('BestSellingProducts.title')}
+      <FeaturedProductCarousel
+        cta={{ label: t('NewestProducts.cta'), href: '/shop-all/?sort=newest' }}
+        description={t('NewestProducts.description')}
+        emptyStateSubtitle={t('NewestProducts.emptyStateSubtitle')}
+        emptyStateTitle={t('NewestProducts.emptyStateTitle')}
+        nextLabel={t('NewestProducts.nextProducts')}
+        previousLabel={t('NewestProducts.previousProducts')}
+        products={streamableNewestProducts}
+        title={t('NewestProducts.title')}
       />
 
-
-      <Subscribe />
+      <Stream fallback={null} value={streamableShowNewsletterSignup}>
+        {(showNewsletterSignup) => showNewsletterSignup && <Subscribe />}
+      </Stream>
     </>
   );
 }

@@ -6,6 +6,8 @@ import * as Skeleton from '@/vibes/soul/primitives/skeleton';
 import { Image } from '~/components/image';
 import { Link } from '~/components/link';
 
+import { Rating } from '../rating';
+
 import { Compare } from './compare';
 
 export interface Product {
@@ -17,6 +19,8 @@ export interface Product {
   subtitle?: string;
   badge?: string;
   rating?: number;
+  inventoryMessage?: string;
+  numberOfReviews?: number;
 }
 
 export interface ProductCardProps {
@@ -29,6 +33,7 @@ export interface ProductCardProps {
   compareLabel?: string;
   compareParamName?: string;
   product: Product;
+  showRating?: boolean;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -43,20 +48,34 @@ export interface ProductCardProps {
  *   --product-card-light-background: hsl(var(--contrast-100));
  *   --product-card-light-title: hsl(var(--foreground));
  *   --product-card-light-subtitle: hsl(var(--foreground) / 75%);
+ *   --product-card-light-message: hsl(var(--foreground) / 75%);
  *   --product-card-dark-offset: hsl(var(--foreground));
  *   --product-card-dark-background: hsl(var(--contrast-500));
  *   --product-card-dark-title: hsl(var(--background));
  *   --product-card-dark-subtitle: hsl(var(--background) / 75%);
+ *   --product-card-dark-message: hsl(var(--background) / 75%);
  *   --product-card-font-family: var(--font-family-body);
  * }
  * ```
  */
 export function ProductCard({
-  product: { id, title, subtitle, badge, price, image, href },
+  product: {
+    id,
+    title,
+    subtitle,
+    badge,
+    price,
+    image,
+    href,
+    inventoryMessage,
+    rating,
+    numberOfReviews,
+  },
+  showRating = false,
   colorScheme = 'light',
   className,
   showCompare = false,
-  aspectRatio = '1:1',
+  aspectRatio = '5:6',
   compareLabel,
   compareParamName,
   imagePriority = false,
@@ -65,7 +84,7 @@ export function ProductCard({
   return (
     <article
       className={clsx(
-        'group flex min-w-0 max-w-md flex-col gap-2 font-[family-name:var(--card-font-family,var(--font-family-body))] @container',
+        'group flex min-w-0 max-w-md flex-col gap-3 font-[family-name:var(--card-font-family,var(--font-family-body))] @container',
         className,
       )}
     >
@@ -88,7 +107,7 @@ export function ProductCard({
             <Image
               alt={image.alt}
               className={clsx(
-                'w-full scale-100 select-none object-cover transition-transform duration-500 ease-out',
+                'w-full scale-100 select-none object-cover transition-transform duration-500 ease-out group-hover:scale-110',
                 {
                   light: 'bg-[var(--product-card-light-background,hsl(var(--contrast-100))]',
                   dark: 'bg-[var(--product-card-dark-background,hsl(var(--contrast-500))]',
@@ -102,7 +121,7 @@ export function ProductCard({
           ) : (
             <div
               className={clsx(
-                'break-words pl-5 pt-5 text-4xl font-bold leading-[0.8] tracking-tighter opacity-25 transition-transform duration-500 ease-out @xs:text-7xl',
+                'break-words pl-5 pt-5 text-4xl font-bold leading-[0.8] tracking-tighter opacity-25 transition-transform duration-500 ease-out group-hover:scale-105 @xs:text-7xl',
                 {
                   light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
                   dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',
@@ -121,11 +140,21 @@ export function ProductCard({
 
         <div className="mt-2 flex flex-col items-start gap-x-4 gap-y-3 px-1 @xs:mt-3 @2xl:flex-row">
           <div className="flex-1 text-sm @[16rem]:text-base">
-
-             {subtitle != null && subtitle !== '' && (
+            <span
+              className={clsx(
+                'line-clamp-2 font-semibold',
+                {
+                  light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
+                  dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',
+                }[colorScheme],
+              )}
+            >
+              {title}
+            </span>
+            {subtitle != null && subtitle !== '' && (
               <span
                 className={clsx(
-                  'mb-1 block text-sm font-normal',
+                  'mb-1.5 block text-sm font-normal',
                   {
                     light: 'text-[var(--product-card-light-subtitle,hsl(var(--foreground)/75%))]',
                     dark: 'text-[var(--product-card-dark-subtitle,hsl(var(--background)/75%))]',
@@ -135,21 +164,21 @@ export function ProductCard({
                 {subtitle}
               </span>
             )}
-            
+            {price != null && <PriceLabel colorScheme={colorScheme} price={price} />}
+            {showRating && typeof rating === 'number' && rating > 0 && (
+              <Rating className="mb-2 mt-1" numberOfReviews={numberOfReviews} rating={rating} />
+            )}
             <span
               className={clsx(
-                'block mb-4 font-normal leading-tight text-lg',
+                'block text-sm font-normal',
                 {
-                  light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
-                  dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',
+                  light: 'text-[var(--product-card-light-message,hsl(var(--foreground)/75%))]',
+                  dark: 'text-[var(--product-card-dark-message,hsl(var(--background)/75%))]',
                 }[colorScheme],
               )}
             >
-              {title}
+              {inventoryMessage}
             </span>
-
-           
-            {price != null && <PriceLabel colorScheme={colorScheme} price={price} />}
           </div>
         </div>
         {href !== '#' && (
@@ -170,7 +199,7 @@ export function ProductCard({
         )}
       </div>
       {showCompare && (
-        <div className="mt-0.5 shrink-0 hidden">
+        <div className="ml-1 mt-auto shrink-0">
           <Compare
             colorScheme={colorScheme}
             label={compareLabel}
@@ -185,7 +214,7 @@ export function ProductCard({
 
 export function ProductCardSkeleton({
   className,
-  aspectRatio = '1:1',
+  aspectRatio = '5:6',
 }: {
   aspectRatio?: '5:6' | '3:4' | '1:1';
   className?: string;

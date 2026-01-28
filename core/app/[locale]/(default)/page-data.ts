@@ -61,11 +61,14 @@ const HomePageQuery = graphql(
             }
           }
         }
-            bestSellingProducts(first: 4) {
-          edges {
-            node {
-              ...FeaturedProductsCarouselFragment
-            }
+        settings {
+          inventory {
+            defaultOutOfStockMessage
+            showOutOfStockMessage
+            showBackorderMessage
+          }
+          newsletter {
+            showNewsletterSignup
           }
         }
       }

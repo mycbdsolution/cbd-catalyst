@@ -15,14 +15,34 @@ export const ProductCardFragment = graphql(
         name
         path
       }
+      inventory {
+        hasVariantInventory
+        isInStock
+        aggregated {
+          availableForBackorder
+          unlimitedBackorder
+          availableOnHand
+        }
+      }
       reviewSummary {
         numberOfReviews
         averageRating
       }
-      customFields(first: 1) {
+      variants(first: 1) {
         edges {
           node {
-            value
+            entityId
+            sku
+            inventory {
+              byLocation {
+                edges {
+                  node {
+                    locationEntityId
+                    backorderMessage
+                  }
+                }
+              }
+            }
           }
         }
       }

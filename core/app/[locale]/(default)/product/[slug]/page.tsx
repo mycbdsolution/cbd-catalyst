@@ -8,23 +8,25 @@ import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { ProductDetail } from '@/vibes/soul/sections/product-detail';
 import { BrandDescription } from '@/vibes/soul/sections/custom/brand-description';
-import { getSessionCustomerAccessToken } from '~/auth';
+import { auth, getSessionCustomerAccessToken } from '~/auth';
 import { pricesTransformer } from '~/data-transformers/prices-transformer';
 import { productCardTransformer } from '~/data-transformers/product-card-transformer';
 import { productOptionsTransformer } from '~/data-transformers/product-options-transformer';
 import { getPreferredCurrencyCode } from '~/lib/currency';
 
 import { addToCart } from './_actions/add-to-cart';
+import { submitReview } from './_actions/submit-review';
 import { ProductAnalyticsProvider } from './_components/product-analytics-provider';
 import { ProductSchema } from './_components/product-schema';
 import { ProductViewed } from './_components/product-viewed';
 import { Reviews } from './_components/reviews';
 import {
-  getInventorySettingsQuery,
   getProduct,
   getProductPageMetadata,
   getProductPricingAndRelatedProducts,
+  getStreamableInventorySettingsQuery,
   getStreamableProduct,
+  getStreamableProductVariant,
 } from './page-data';
 
 // BLAKE CUSTOM - NEXT 3 LINES
@@ -82,7 +84,10 @@ export default async function Product({ params, searchParams }: Props) {
 
   const productId = Number(slug);
 
-  const baseProduct = await getProduct(productId, customerAccessToken);
+  const { product: baseProduct, settings } = await getProduct(productId, customerAccessToken);
+
+  const reviewsEnabled = Boolean(settings?.reviews.enabled && !settings.display.showProductRating);
+  const showRating = Boolean(settings?.reviews.enabled && settings.display.showProductRating);
 
   if (!baseProduct) {
     return notFound();
@@ -123,6 +128,27 @@ export default async function Product({ params, searchParams }: Props) {
   });
 
   const streamableProductSku = Streamable.from(async () => (await streamableProduct).sku);
+
+  const streamableProductVariant = Streamable.from(async () => {
+    const product = await streamableProduct;
+
+    if (!product.inventory.hasVariantInventory) {
+      return undefined;
+    }
+
+    const variables = {
+      productId,
+      sku: product.sku,
+    };
+
+    const variants = await getStreamableProductVariant(variables, customerAccessToken);
+
+    if (!variants) {
+      return undefined;
+    }
+
+    return removeEdgesAndNodes(variants).find((v) => v.sku === product.sku);
+  });
 
   const streamableProductPricingAndRelatedProducts = Streamable.from(async () => {
     const options = await searchParams;
@@ -210,29 +236,92 @@ export default async function Product({ params, searchParams }: Props) {
     return false;
   });
 
-  const streamableStockLevelMessage = Streamable.from(async () => {
-    const inventorySetting = await getInventorySettingsQuery(customerAccessToken);
+  const streamableInventorySettings = Streamable.from(async () => {
+    return await getStreamableInventorySettingsQuery(customerAccessToken);
+  });
+
+  const getBackorderAvailabilityPrompt = ({
+    showBackorderAvailabilityPrompt,
+    backorderAvailabilityPrompt,
+    availableForBackorder,
+    unlimitedBackorder,
+  }: {
+    showBackorderAvailabilityPrompt: boolean;
+    backorderAvailabilityPrompt: string | null;
+    availableForBackorder?: number | null;
+    unlimitedBackorder?: boolean;
+  }) => {
+    if (!showBackorderAvailabilityPrompt || !backorderAvailabilityPrompt) {
+      return null;
+    }
+
+    const hasBackorderAvailablity = !!availableForBackorder || unlimitedBackorder;
+
+    if (!hasBackorderAvailablity) {
+      return null;
+    }
+
+    return backorderAvailabilityPrompt;
+  };
+
+  const streamableStockDisplayData = Streamable.from(async () => {
+    const [product, variant, inventorySetting] = await Streamable.all([
+      streamableProduct,
+      streamableProductVariant,
+      streamableInventorySettings,
+    ]);
 
     if (!inventorySetting) {
       return null;
     }
 
-    const { showOutOfStockMessage, stockLevelDisplay, defaultOutOfStockMessage } = inventorySetting;
+    let inventory;
 
-    const product = await streamableProduct;
-
-    if (!product.inventory.isInStock) {
-      return showOutOfStockMessage ? defaultOutOfStockMessage : null;
+    if (product.inventory.hasVariantInventory) {
+      inventory = variant?.inventory;
+    } else {
+      inventory = product.inventory;
     }
+
+    if (!inventory) {
+      return null;
+    }
+
+    const {
+      showOutOfStockMessage,
+      stockLevelDisplay,
+      defaultOutOfStockMessage,
+      showBackorderAvailabilityPrompt,
+      showBackorderMessage,
+      showQuantityOnBackorder,
+      backorderAvailabilityPrompt,
+    } = inventorySetting;
+
+    if (!inventory.isInStock) {
+      return showOutOfStockMessage
+        ? { stockLevelMessage: defaultOutOfStockMessage, backorderAvailabilityPrompt: null }
+        : null;
+    }
+
+    const {
+      availableToSell,
+      warningLevel,
+      availableOnHand,
+      availableForBackorder,
+      unlimitedBackorder,
+    } = inventory.aggregated ?? {};
 
     if (stockLevelDisplay === 'DONT_SHOW') {
       return null;
     }
 
-    const { availableToSell, warningLevel } = product.inventory.aggregated ?? {};
+    const showsBackorderInfo =
+      showBackorderAvailabilityPrompt || showBackorderMessage || showQuantityOnBackorder;
 
-    // availableToSell can be 0 while the product is in stock if backorderLimit is UNLIMITED
-    if (!availableToSell) {
+    // if no backorder info is to be displayed, then availableToSell is the stock quantity to be used
+    const stockQuantity = showsBackorderInfo ? availableOnHand : availableToSell;
+
+    if (!showsBackorderInfo && !stockQuantity) {
       return null;
     }
 
@@ -241,14 +330,100 @@ export default async function Product({ params, searchParams }: Props) {
         return null;
       }
 
-      if (availableToSell && availableToSell > warningLevel) {
+      if (stockQuantity && stockQuantity > warningLevel) {
         return null;
       }
     }
 
-    return t('ProductDetails.currentStock', {
-      quantity: availableToSell,
+    const availabilityMessage = getBackorderAvailabilityPrompt({
+      showBackorderAvailabilityPrompt,
+      backorderAvailabilityPrompt,
+      availableForBackorder,
+      unlimitedBackorder,
     });
+
+    if (!availabilityMessage && stockQuantity === undefined) {
+      return null;
+    }
+
+    return {
+      stockLevelMessage: t('ProductDetails.currentStock', {
+        quantity: stockQuantity ?? 0,
+      }),
+      backorderAvailabilityPrompt: availabilityMessage,
+    };
+  });
+
+  const streamableBackorderDisplayData = Streamable.from(async () => {
+    const [product, variant, inventorySetting] = await Streamable.all([
+      streamableProduct,
+      streamableProductVariant,
+      streamableInventorySettings,
+    ]);
+
+    let inventory;
+
+    if (!product.inventory.hasVariantInventory) {
+      inventory = product.inventory;
+    } else {
+      inventory = variant?.inventory;
+    }
+
+    if (!inventory?.aggregated || !inventorySetting) {
+      return {
+        availableOnHand: 0,
+        availableForBackorder: 0,
+        unlimitedBackorder: false,
+        showQuantityOnBackorder: false,
+        backorderMessage: null,
+      };
+    }
+
+    const inventoryData = {
+      availableOnHand: inventory.aggregated.availableOnHand,
+      availableForBackorder: inventory.aggregated.availableForBackorder ?? 0,
+      unlimitedBackorder: inventory.aggregated.unlimitedBackorder,
+    };
+
+    const { showQuantityOnBackorder, showBackorderMessage } = inventorySetting;
+
+    const hasBackorderAvailablity =
+      inventoryData.availableForBackorder > 0 || inventoryData.unlimitedBackorder;
+
+    if (!hasBackorderAvailablity || !showBackorderMessage) {
+      return {
+        ...inventoryData,
+        showQuantityOnBackorder: showQuantityOnBackorder && hasBackorderAvailablity,
+        backorderMessage: null,
+      };
+    }
+
+    let variantLocations;
+
+    if (product.inventory.hasVariantInventory) {
+      variantLocations = variant?.inventory?.byLocation;
+    } else {
+      const variants = removeEdgesAndNodes(product.variants);
+      const baseVariant = variants.find((v) => v.sku === product.sku);
+
+      variantLocations = baseVariant?.inventory?.byLocation;
+    }
+
+    if (!variantLocations) {
+      return {
+        ...inventoryData,
+        showQuantityOnBackorder,
+        backorderMessage: null,
+      };
+    }
+
+    const inventoryByLocation = removeEdgesAndNodes(variantLocations).at(0);
+
+    return {
+      ...inventoryData,
+      showQuantityOnBackorder,
+      backorderMessage: inventoryByLocation?.backorderMessage || null,
+    };
   });
 
   const streameableAccordions = Streamable.from(async () => {
@@ -349,6 +524,21 @@ export default async function Product({ params, searchParams }: Props) {
     };
   });
 
+  const streamableUser = Streamable.from(async () => {
+    const session = await auth();
+    const firstName = session?.user?.firstName ?? '';
+    const lastName = session?.user?.lastName ?? '';
+
+    if (!firstName || !lastName) {
+      return { email: session?.user?.email ?? '', name: '' };
+    }
+
+    const lastInitial = lastName.charAt(0).toUpperCase();
+    const obfuscatedName = `${firstName} ${lastInitial}.`;
+
+    return { email: session?.user?.email ?? '', name: obfuscatedName };
+  });
+
   return (
     <>
       <ProductAnalyticsProvider data={streamableAnalyticsData}>
@@ -371,6 +561,9 @@ export default async function Product({ params, searchParams }: Props) {
             href: baseProduct.path,
             images: streamableImages,
             price: streamablePrices,
+            reviewsEnabled,
+            showRating,
+            numberOfReviews: baseProduct.reviewSummary.numberOfReviews,
             subtitle: baseProduct.brand?.name,
             brandPath: baseProduct.brand?.path,
             rating: baseProduct.reviewSummary.averageRating,
@@ -378,10 +571,13 @@ export default async function Product({ params, searchParams }: Props) {
             accordions: streameableAccordions,
             minQuantity: streamableMinQuantity,
             maxQuantity: streamableMaxQuantity,
-            stockLevelMessage: streamableStockLevelMessage,
+            stockDisplayData: streamableStockDisplayData,
+            backorderDisplayData: streamableBackorderDisplayData,
           }}
           quantityLabel={t('ProductDetails.quantity')}
+          reviewFormAction={submitReview}
           thumbnailLabel={t('ProductDetails.thumbnail')}
+          user={streamableUser}
         />
       </ProductAnalyticsProvider>
 
@@ -398,12 +594,16 @@ export default async function Product({ params, searchParams }: Props) {
               title={t('RelatedProducts.title')}
             />
 
-      <Reviews
-        productId={productId}
-        searchParams={searchParams}
-        streamableImages={streamableImages}
-        streamableProduct={streamableProduct}
-      />
+      {showRating && (
+        <div id="reviews">
+          <Reviews
+            productId={productId}
+            searchParams={searchParams}
+            streamableImages={streamableImages}
+            streamableProduct={streamableProduct}
+          />
+        </div>
+      )}
 
       <Stream
         fallback={null}
