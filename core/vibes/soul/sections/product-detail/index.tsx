@@ -6,7 +6,10 @@ import { AnimatedUnderline } from '@/vibes/soul/primitives/animated-underline';
 import { Price, PriceLabel } from '@/vibes/soul/primitives/price-label';
 import * as Skeleton from '@/vibes/soul/primitives/skeleton';
 import { type Breadcrumb, Breadcrumbs } from '@/vibes/soul/sections/breadcrumbs';
-import { ProductGallery } from '@/vibes/soul/sections/product-detail/product-gallery';
+import {
+  ProductGallery,
+  ProductGalleryLoadMoreAction,
+} from '@/vibes/soul/sections/product-detail/product-gallery';
 import { ReviewForm, SubmitReviewAction } from '@/vibes/soul/sections/reviews/review-form';
 import { Link } from '~/components/link';
 
@@ -23,7 +26,10 @@ interface ProductDetailProduct {
   id: string;
   title: string;
   href: string;
-  images: Streamable<Array<{ src: string; alt: string }>>;
+  images: Streamable<{
+    images: Array<{ src: string; alt: string }>;
+    pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+  }>;
   price?: Streamable<Price | null>;
   subtitle?: string;
   brandPath?: string;
@@ -70,6 +76,8 @@ export interface ProductDetailProps<F extends Field> {
   reviewFormTitleLabel?: string;
   reviewFormAction: SubmitReviewAction;
   user: Streamable<{ email: string; name: string }>;
+  loadMoreImagesAction?: ProductGalleryLoadMoreAction;
+  recaptchaSiteKey?: string;
 }
 
 // eslint-disable-next-line valid-jsdoc
@@ -111,6 +119,8 @@ export function ProductDetail<F extends Field>({
   reviewFormTitleLabel,
   reviewFormAction,
   user,
+  loadMoreImagesAction,
+  recaptchaSiteKey,
 }: ProductDetailProps<F>) {
   return (
     <section className="@container">
@@ -126,7 +136,14 @@ export function ProductDetail<F extends Field>({
               <div className="grid grid-cols-1 items-stretch gap-x-8 gap-y-8 @2xl:grid-cols-2 @5xl:gap-x-12">
                 <div className="group/product-gallery hidden @2xl:block">
                   <Stream fallback={<ProductGallerySkeleton />} value={product.images}>
-                    {(images) => <ProductGallery images={images} />}
+                    {(imagesData) => (
+                      <ProductGallery
+                        images={imagesData.images}
+                        loadMoreAction={loadMoreImagesAction}
+                        pageInfo={imagesData.pageInfo}
+                        productId={Number(product.id)}
+                      />
+                    )}
                   </Stream>
                 </div>
                 {/* Product Details */}
@@ -160,6 +177,7 @@ export function ProductDetail<F extends Field>({
                         formSubmitLabel={reviewFormSubmitLabel}
                         formTitleLabel={reviewFormTitleLabel}
                         productId={Number(product.id)}
+                        recaptchaSiteKey={recaptchaSiteKey}
                         streamableImages={product.images}
                         streamableProduct={{ name: product.title }}
                         streamableUser={user}
@@ -196,8 +214,14 @@ export function ProductDetail<F extends Field>({
                   </div>
                   <div className="group/product-gallery mb-8 @2xl:hidden">
                     <Stream fallback={<ProductGallerySkeleton />} value={product.images}>
-                      {(images) => (
-                        <ProductGallery images={images} thumbnailLabel={thumbnailLabel} />
+                      {(imagesData) => (
+                        <ProductGallery
+                          images={imagesData.images}
+                          loadMoreAction={loadMoreImagesAction}
+                          pageInfo={imagesData.pageInfo}
+                          productId={Number(product.id)}
+                          thumbnailLabel={thumbnailLabel}
+                        />
                       )}
                     </Stream>
                   </div>

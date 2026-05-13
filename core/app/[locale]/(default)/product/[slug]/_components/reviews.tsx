@@ -77,8 +77,12 @@ const getReviews = cache(async (productId: number, paginationArgs: object) => {
 interface Props {
   productId: number;
   searchParams: Promise<SearchParams>;
-  streamableImages: Streamable<Array<{ src: string; alt: string }>>;
+  streamableImages: Streamable<{
+    images: Array<{ src: string; alt: string }>;
+    pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+  }>;
   streamableProduct: Streamable<Awaited<ReturnType<typeof getStreamableProduct>>>;
+  recaptchaSiteKey?: string;
 }
 
 export const Reviews = async ({
@@ -86,6 +90,7 @@ export const Reviews = async ({
   searchParams,
   streamableProduct,
   streamableImages,
+  recaptchaSiteKey,
 }: Props) => {
   const t = await getTranslations('Product.Reviews');
 
@@ -187,6 +192,7 @@ export const Reviews = async ({
         paginationInfo={streamablePaginationInfo}
         previousLabel={t('previous')}
         productId={productId}
+        recaptchaSiteKey={recaptchaSiteKey}
         reviews={streamableReviews}
         reviewsLabel={t('title')}
         streamableImages={streamableImages}

@@ -4,6 +4,7 @@ import { DynamicForm, DynamicFormAction } from '@/vibes/soul/form/dynamic-form';
 import {
   Field,
   FieldGroup,
+  FormErrorTranslationMap,
   PasswordComplexitySettings,
 } from '@/vibes/soul/form/dynamic-form/schema';
 import { SectionLayout } from '@/vibes/soul/sections/section-layout';
@@ -16,6 +17,8 @@ interface Props<F extends Field> {
   submitLabel?: string;
   className?: string;
   passwordComplexity?: PasswordComplexitySettings | null;
+  errorTranslations?: FormErrorTranslationMap;
+  recaptchaSiteKey?: string;
 }
 
 export function DynamicFormSection<F extends Field>({
@@ -26,6 +29,8 @@ export function DynamicFormSection<F extends Field>({
   submitLabel,
   action,
   passwordComplexity,
+  errorTranslations,
+  recaptchaSiteKey,
 }: Props<F>) {
   return (
     <SectionLayout className={clsx('mx-auto w-full max-w-4xl', className)} containerSize="lg">
@@ -41,8 +46,10 @@ export function DynamicFormSection<F extends Field>({
       )}
       <DynamicForm
         action={action}
+        errorTranslations={errorTranslations}
         fields={fields}
         passwordComplexity={passwordComplexity}
+        recaptchaSiteKey={recaptchaSiteKey}
         submitLabel={submitLabel}
       />
     </SectionLayout>

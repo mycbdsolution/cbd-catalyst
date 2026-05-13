@@ -28,6 +28,10 @@ export const PhysicalItemFragment = graphql(`
       currencyCode
       value
     }
+    discountedAmount {
+      currencyCode
+      value
+    }
     selectedOptions {
       __typename
       entityId
@@ -56,6 +60,12 @@ export const PhysicalItemFragment = graphql(`
       }
     }
     url
+    stockPosition {
+      backorderMessage
+      quantityOnHand
+      quantityBackordered
+      quantityOutOfStock
+    }
   }
 `);
 
@@ -78,6 +88,10 @@ export const DigitalItemFragment = graphql(`
       value
     }
     salePrice {
+      currencyCode
+      value
+    }
+    discountedAmount {
       currencyCode
       value
     }
@@ -206,6 +220,13 @@ const CartPageQuery = graphql(
     query CartPageQuery($cartId: String, $currencyCode: currencyCode) {
       site {
         settings {
+          inventory {
+            defaultOutOfStockMessage
+            showOutOfStockMessage
+            showBackorderMessage
+            showQuantityOnBackorder
+            showQuantityOnHand
+          }
           url {
             checkoutUrl
           }

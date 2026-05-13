@@ -13,8 +13,11 @@ import { pricesTransformer } from '~/data-transformers/prices-transformer';
 import { productCardTransformer } from '~/data-transformers/product-card-transformer';
 import { productOptionsTransformer } from '~/data-transformers/product-options-transformer';
 import { getPreferredCurrencyCode } from '~/lib/currency';
+import { getRecaptchaSiteKey } from '~/lib/recaptcha';
+import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { addToCart } from './_actions/add-to-cart';
+import { getMoreProductImages } from './_actions/get-more-images';
 import { submitReview } from './_actions/submit-review';
 import { ProductAnalyticsProvider } from './_components/product-analytics-provider';
 import { ProductSchema } from './_components/product-schema';
@@ -26,7 +29,8 @@ import {
   getProductPricingAndRelatedProducts,
   getStreamableInventorySettingsQuery,
   getStreamableProduct,
-  getStreamableProductVariant,
+  getStreamableProductInventory,
+  getStreamableProductVariantInventory,
 } from './page-data';
 
 // BLAKE CUSTOM - NEXT 3 LINES
@@ -41,7 +45,7 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   const customerAccessToken = await getSessionCustomerAccessToken();
 
   const productId = Number(slug);
@@ -57,18 +61,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: pageTitle || product.name,
-    description: metaDescription || `${product.plainTextDescription.slice(0, 150)}...`,
-    keywords: metaKeywords ? metaKeywords.split(',') : null,
-    openGraph: url
-      ? {
-          images: [
-            {
-              url,
-              alt,
-            },
-          ],
-        }
-      : null,
+    description:
+      metaDescription ||
+      `${product.plainTextDescription.replaceAll(/\s+/g, ' ').trim().slice(0, 150)}...`,
+    ...(metaKeywords && { keywords: metaKeywords.split(',') }),
+    alternates: await getMetadataAlternates({ path: product.path, locale }),
+    ...(url && { openGraph: { images: [{ url, alt }] } }),
   };
 }
 
@@ -84,7 +82,10 @@ export default async function Product({ params, searchParams }: Props) {
 
   const productId = Number(slug);
 
-  const { product: baseProduct, settings } = await getProduct(productId, customerAccessToken);
+  const [{ product: baseProduct, settings }, recaptchaSiteKey] = await Promise.all([
+    getProduct(productId, customerAccessToken),
+    getRecaptchaSiteKey(),
+  ]);
 
   const reviewsEnabled = Boolean(settings?.reviews.enabled && !settings.display.showProductRating);
   const showRating = Boolean(settings?.reviews.enabled && settings.display.showProductRating);
@@ -129,8 +130,22 @@ export default async function Product({ params, searchParams }: Props) {
 
   const streamableProductSku = Streamable.from(async () => (await streamableProduct).sku);
 
-  const streamableProductVariant = Streamable.from(async () => {
-    const product = await streamableProduct;
+  const streamableProductInventory = Streamable.from(async () => {
+    const variables = {
+      entityId: Number(productId),
+    };
+
+    const product = await getStreamableProductInventory(variables, customerAccessToken);
+
+    if (!product) {
+      return notFound();
+    }
+
+    return product;
+  });
+
+  const streamableProductVariantInventory = Streamable.from(async () => {
+    const product = await streamableProductInventory;
 
     if (!product.inventory.hasVariantInventory) {
       return undefined;
@@ -141,7 +156,7 @@ export default async function Product({ params, searchParams }: Props) {
       sku: product.sku,
     };
 
-    const variants = await getStreamableProductVariant(variables, customerAccessToken);
+    const variants = await getStreamableProductVariantInventory(variables, customerAccessToken);
 
     if (!variants) {
       return undefined;
@@ -195,13 +210,16 @@ export default async function Product({ params, searchParams }: Props) {
         alt: image.altText,
       }));
 
-    return product.defaultImage
-      ? [{ src: product.defaultImage.url, alt: product.defaultImage.altText }, ...images]
-      : images;
+    return {
+      images: product.defaultImage
+        ? [{ src: product.defaultImage.url, alt: product.defaultImage.altText }, ...images]
+        : images,
+      pageInfo: product.images.pageInfo,
+    };
   });
 
   const streameableCtaLabel = Streamable.from(async () => {
-    const product = await streamableProduct;
+    const product = await streamableProductInventory;
 
     if (product.availabilityV2.status === 'Unavailable') {
       return t('ProductDetails.Submit.unavailable');
@@ -219,7 +237,7 @@ export default async function Product({ params, searchParams }: Props) {
   });
 
   const streameableCtaDisabled = Streamable.from(async () => {
-    const product = await streamableProduct;
+    const product = await streamableProductInventory;
 
     if (product.availabilityV2.status === 'Unavailable') {
       return true;
@@ -266,8 +284,8 @@ export default async function Product({ params, searchParams }: Props) {
 
   const streamableStockDisplayData = Streamable.from(async () => {
     const [product, variant, inventorySetting] = await Streamable.all([
-      streamableProduct,
-      streamableProductVariant,
+      streamableProductInventory,
+      streamableProductVariantInventory,
       streamableInventorySettings,
     ]);
 
@@ -356,8 +374,8 @@ export default async function Product({ params, searchParams }: Props) {
 
   const streamableBackorderDisplayData = Streamable.from(async () => {
     const [product, variant, inventorySetting] = await Streamable.all([
-      streamableProduct,
-      streamableProductVariant,
+      streamableProductInventory,
+      streamableProductVariantInventory,
       streamableInventorySettings,
     ]);
 
@@ -552,6 +570,7 @@ export default async function Product({ params, searchParams }: Props) {
           emptySelectPlaceholder={t('ProductDetails.emptySelectPlaceholder')}
           fields={productOptionsTransformer(baseProduct.productOptions)}
           incrementLabel={t('ProductDetails.increaseQuantity')}
+          loadMoreImagesAction={getMoreProductImages}
           prefetch={true}
           product={{
             id: baseProduct.entityId.toString(),
@@ -575,6 +594,7 @@ export default async function Product({ params, searchParams }: Props) {
             backorderDisplayData: streamableBackorderDisplayData,
           }}
           quantityLabel={t('ProductDetails.quantity')}
+          recaptchaSiteKey={recaptchaSiteKey}
           reviewFormAction={submitReview}
           thumbnailLabel={t('ProductDetails.thumbnail')}
           user={streamableUser}
@@ -598,6 +618,7 @@ export default async function Product({ params, searchParams }: Props) {
         <div id="reviews">
           <Reviews
             productId={productId}
+            recaptchaSiteKey={recaptchaSiteKey}
             searchParams={searchParams}
             streamableImages={streamableImages}
             streamableProduct={streamableProduct}

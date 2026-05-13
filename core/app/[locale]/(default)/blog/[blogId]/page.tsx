@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { BlogPostContent, BlogPostContentBlogPost } from '@/vibes/soul/sections/blog-post-content';
 import { Breadcrumb } from '@/vibes/soul/sections/breadcrumbs';
+import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { getBlogPageData } from './page-data';
 
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { blogId } = await params;
+  const { blogId, locale } = await params;
 
   const variables = cachedBlogPageDataVariables(blogId);
 
@@ -33,8 +34,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: pageTitle || blogPost.name,
-    description: metaDescription,
-    keywords: metaKeywords ? metaKeywords.split(',') : null,
+    ...(metaDescription && { description: metaDescription }),
+    ...(metaKeywords && { keywords: metaKeywords.split(',') }),
+    ...(blogPost.path && {
+      alternates: await getMetadataAlternates({ path: blogPost.path, locale }),
+    }),
   };
 }
 

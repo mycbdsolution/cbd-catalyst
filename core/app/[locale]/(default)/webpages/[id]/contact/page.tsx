@@ -12,6 +12,8 @@ import {
   breadcrumbsTransformer,
   truncateBreadcrumbs,
 } from '~/data-transformers/breadcrumbs-transformer';
+import { getRecaptchaSiteKey } from '~/lib/recaptcha';
+import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { WebPage, WebPageContent } from '../_components/web-page';
 
@@ -153,14 +155,17 @@ async function getContactFields(id: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
+  const { id, locale } = await params;
   const webpage = await getWebPage(id);
   const { pageTitle, metaDescription, metaKeywords } = webpage.seo;
 
   return {
     title: pageTitle || webpage.title,
-    description: metaDescription,
-    keywords: metaKeywords ? metaKeywords.split(',') : null,
+    ...(metaDescription && { description: metaDescription }),
+    ...(metaKeywords && { keywords: metaKeywords.split(',') }),
+    ...(webpage.path && {
+      alternates: await getMetadataAlternates({ path: webpage.path, locale }),
+    }),
   };
 }
 
@@ -191,6 +196,8 @@ export default async function ContactPage({ params, searchParams }: Props) {
     );
   }
 
+  const recaptchaSiteKey = await getRecaptchaSiteKey();
+
   return (
     <WebPageContent
       breadcrumbs={Streamable.from(() => getWebPageBreadcrumbs(id))}
@@ -200,6 +207,7 @@ export default async function ContactPage({ params, searchParams }: Props) {
         <DynamicForm
           action={submitContactForm}
           fields={await getContactFields(id)}
+          recaptchaSiteKey={recaptchaSiteKey}
           submitLabel={t('cta')}
         />
       </div>

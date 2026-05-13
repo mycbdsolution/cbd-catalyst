@@ -1,8 +1,8 @@
 import { unstable_isDraftModeRequest } from '@makeswift/runtime/next/middleware';
 
-import { MiddlewareFactory } from './compose-middlewares';
+import { type ProxyFactory } from './compose-proxies';
 
-export const withMakeswift: MiddlewareFactory = (middleware) => {
+export const withMakeswift: ProxyFactory = (middleware) => {
   return async (request, event) => {
     const isDraftRequest = unstable_isDraftModeRequest(request);
 

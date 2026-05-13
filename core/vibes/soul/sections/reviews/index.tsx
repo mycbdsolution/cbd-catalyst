@@ -29,14 +29,19 @@ interface Props {
   formButtonLabel?: string;
   formModalTitle?: string;
   formSubmitLabel?: string;
+  formCancelLabel?: string;
   formRatingLabel?: string;
   formTitleLabel?: string;
   formReviewLabel?: string;
   formNameLabel?: string;
   formEmailLabel?: string;
-  streamableImages: Streamable<Array<{ src: string; alt: string }>>;
+  streamableImages: Streamable<{
+    images: Array<{ src: string; alt: string }>;
+    pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+  }>;
   streamableProduct: Streamable<{ name: string }>;
   streamableUser: Streamable<{ email: string; name: string }>;
+  recaptchaSiteKey?: string;
 }
 
 export function Reviews({
@@ -53,6 +58,7 @@ export function Reviews({
   formButtonLabel = 'Write a review',
   formModalTitle,
   formSubmitLabel,
+  formCancelLabel,
   formRatingLabel,
   formTitleLabel,
   formReviewLabel,
@@ -61,6 +67,7 @@ export function Reviews({
   streamableProduct,
   streamableImages,
   streamableUser,
+  recaptchaSiteKey,
 }: Readonly<Props>) {
   return (
     <Stream fallback={<ReviewsSkeleton reviewsLabel={reviewsLabel} />} value={streamableReviews}>
@@ -70,6 +77,7 @@ export function Reviews({
             <ReviewsEmptyState
               action={action}
               formButtonLabel={formButtonLabel}
+              formCancelLabel={formCancelLabel}
               formEmailLabel={formEmailLabel}
               formModalTitle={formModalTitle}
               formNameLabel={formNameLabel}
@@ -79,6 +87,7 @@ export function Reviews({
               formTitleLabel={formTitleLabel}
               message={emptyStateMessage}
               productId={productId}
+              recaptchaSiteKey={recaptchaSiteKey}
               reviewsLabel={reviewsLabel}
               streamableImages={streamableImages}
               streamableProduct={streamableProduct}
@@ -134,6 +143,7 @@ export function Reviews({
                   formSubmitLabel={formSubmitLabel}
                   formTitleLabel={formTitleLabel}
                   productId={productId}
+                  recaptchaSiteKey={recaptchaSiteKey}
                   streamableImages={streamableImages}
                   streamableProduct={streamableProduct}
                   streamableUser={streamableUser}
@@ -188,6 +198,7 @@ export function ReviewsEmptyState({
   formButtonLabel = 'Write a review',
   formModalTitle,
   formSubmitLabel,
+  formCancelLabel,
   formRatingLabel,
   formTitleLabel,
   formReviewLabel,
@@ -196,6 +207,7 @@ export function ReviewsEmptyState({
   streamableProduct,
   streamableImages,
   streamableUser,
+  recaptchaSiteKey,
 }: {
   message?: string;
   reviewsLabel?: string;
@@ -204,14 +216,19 @@ export function ReviewsEmptyState({
   formButtonLabel?: string;
   formModalTitle?: string;
   formSubmitLabel?: string;
+  formCancelLabel?: string;
   formRatingLabel?: string;
   formTitleLabel?: string;
   formReviewLabel?: string;
   formNameLabel?: string;
   formEmailLabel?: string;
-  streamableImages: Streamable<Array<{ src: string; alt: string }>>;
+  streamableImages: Streamable<{
+    images: Array<{ src: string; alt: string }>;
+    pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+  }>;
   streamableProduct: Streamable<{ name: string }>;
   streamableUser: Streamable<{ email: string; name: string }>;
+  recaptchaSiteKey?: string;
 }) {
   return (
     <StickySidebarLayout
@@ -232,6 +249,7 @@ export function ReviewsEmptyState({
         <p className="text-center">{message}</p>
         <ReviewForm
           action={action}
+          formCancelLabel={formCancelLabel}
           formEmailLabel={formEmailLabel}
           formModalTitle={formModalTitle}
           formNameLabel={formNameLabel}
@@ -240,6 +258,7 @@ export function ReviewsEmptyState({
           formSubmitLabel={formSubmitLabel}
           formTitleLabel={formTitleLabel}
           productId={productId}
+          recaptchaSiteKey={recaptchaSiteKey}
           streamableImages={streamableImages}
           streamableProduct={streamableProduct}
           streamableUser={streamableUser}
