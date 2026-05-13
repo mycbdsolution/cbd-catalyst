@@ -1,7 +1,5 @@
 'use client';
 
-// eslint-disable-next-line import/no-named-as-default
-import DOMPurify from 'dompurify';
 import { useFormatter } from 'next-intl';
 import { Product as ProductSchemaType, WithContext } from 'schema-dts';
 
@@ -12,6 +10,15 @@ import { ProductReviewSchemaFragment } from './fragment';
 interface Props {
   productId: number;
   reviews: Array<FragmentOf<typeof ProductReviewSchemaFragment>>;
+}
+
+function serializeJsonLd(value: unknown) {
+  return JSON.stringify(value)
+    .replaceAll('<', '\\u003c')
+    .replaceAll('>', '\\u003e')
+    .replaceAll('&', '\\u0026')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029');
 }
 
 export const ProductReviewSchema = ({ reviews, productId }: Props) => {
@@ -43,7 +50,7 @@ export const ProductReviewSchema = ({ reviews, productId }: Props) => {
 
   return (
     <script
-      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(JSON.stringify(productReviewSchema)) }}
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(productReviewSchema) }}
       type="application/ld+json"
     />
   );
