@@ -355,6 +355,20 @@ function ProductSummarySkeleton() {
   );
 }
 
+function ProductBulletsSkeleton() {
+  return (
+    <Skeleton.Root
+      className="flex w-full flex-col gap-3.5 pb-6 group-has-[[data-pending]]/product-bullets:animate-pulse"
+      pending
+    >
+      {Array.from({ length: 2 }).map((_, idx) => (
+        <Skeleton.Box className="h-2.5 w-full" key={idx} />
+      ))}
+      <Skeleton.Box className="h-2.5 w-3/4" />
+    </Skeleton.Root>
+  );
+}
+
 function ProductDescriptionSkeleton() {
   return (
     <Skeleton.Root

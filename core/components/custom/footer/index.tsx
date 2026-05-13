@@ -84,7 +84,9 @@ export const FooterCustom = async () => {
 
   return (
     <footer className="bg-white dark:bg-gray-900">
-      <div className="mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-12 lg:px-8 lg:pt-24">
+      <div className="relative bg-gradient-to-br from-amber-100 to-green-500">
+        <div className="absolute inset-2 rounded-4xl bg-white/80"></div>
+      <div className="relative mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-12 lg:px-8 lg:pt-24">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="blake">
               <Image
@@ -97,7 +99,7 @@ export const FooterCustom = async () => {
 <p className="text-3xl text-gray-300 leading-none mb-2 2xl:text-4xl">my<span className="text-primary font-black">CBD</span>solution</p>
 
             <p className="text-balance text-sm/6 text-gray-600 dark:text-gray-400">
-              Science-backed natural wellness products for pain, mood, and overall whole-body balance.
+              Premium nature-derived wellness products for pain relief, mood support, and whole-body balance. 
             </p>
           </div>
           <div className="mt-16 grid grid-cols-3 gap-8 xl:col-span-2 xl:mt-0">
@@ -156,10 +158,11 @@ export const FooterCustom = async () => {
           </div>
         </div>
         <div className="mt-16 border-t border-gray-900/10 pt-8 sm:mt-20 lg:mt-24 dark:border-white/10">
-          <p className="text-sm/6 text-gray-600 dark:text-gray-400">
+          <p className="text-xs/6 text-gray-600 dark:text-gray-400">
             &copy; {new Date().getFullYear()}  My CBD Solution. All rights reserved.
           </p>
         </div>
+      </div>
       </div>
     </footer>
   )

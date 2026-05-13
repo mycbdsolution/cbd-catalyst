@@ -47,14 +47,14 @@ const HomePageQuery = graphql(
   `
     query HomePageQuery($currencyCode: currencyCode) {
       site {
-        featuredProducts(first: 12) {
+        featuredProducts(first: 4) {
           edges {
             node {
               ...FeaturedProductsListFragment
             }
           }
         }
-        newestProducts(first: 12) {
+        bestSellingProducts(first: 4) {
           edges {
             node {
               ...FeaturedProductsCarouselFragment

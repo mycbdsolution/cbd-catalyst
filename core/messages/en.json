@@ -2,13 +2,13 @@
   "Home": {
     "Slideshow": {
       "Slide01": {
-        "title": "Fresh finds for every occasion",
-        "description": "Explore our latest arrivals, curated to bring you style, functionality, and inspiration. Shop now and discover your next favorite.",
+        "title": "Premium, nature-derived wellness made simple.",
+        "description": "Exclusively curated CBD and natural wellness solutions for pain relief, mood support, and balance. Trusted brands, effortless shopping, and free shipping & returns—always.",
         "alt": "Five small potted plants displayed on beige stacked blocks, featuring a variety of green foliage in dark gray pots against a neutral background.",
         "cta": "Shop Now"
       },
       "Slide02": {
-        "title": "Discover what's new",
+        "title": "Exclusively curated",
         "description": "Shop our latest arrivals and find something fresh and exciting for your home.",
         "alt": "Hands reaching out to hold a green fern in a woven basket with a decorative bow, against a beige background with soft shadows.",
         "cta": "Shop Now"
@@ -31,6 +31,15 @@
       "title": "New arrivals",
       "description": "Our latest products are here. Check out what's new in store.",
       "cta": "See all",
+      "emptyStateTitle": "No products found",
+      "emptyStateSubtitle": "Try browsing our complete catalog of products.",
+      "previousProducts": "Previous products",
+      "nextProducts": "Next products"
+    },
+      "BestSellingProducts": {
+      "title": "Best sellers",
+      "description": "Our best selling products are here. Check out the best sellers.",
+      "cta": "Shop all",
       "emptyStateTitle": "No products found",
       "emptyStateSubtitle": "Try browsing our complete catalog of products.",
       "previousProducts": "Previous products",

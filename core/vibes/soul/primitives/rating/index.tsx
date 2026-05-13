@@ -50,7 +50,7 @@ export const Star = ({ type }: StarType) => {
 
   return (
     <svg
-      className="inline-block text-foreground"
+      className="inline-block text-gold"
       fill="none"
       height={20}
       viewBox="0 0 20 20"

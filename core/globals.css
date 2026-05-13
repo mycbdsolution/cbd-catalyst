@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+.bg-product-card {
+  background: hsl(0deg 0% 97.25%)
+}
+.rounded-3xl {
+  border-radius: 1.5rem;
+}
+.rounded-4xl {
+  border-radius: 2rem;
+}
+
 :root {
   --primary: 96 100% 68%;
   --accent: 96 100% 88%;

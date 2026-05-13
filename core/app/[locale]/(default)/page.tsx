@@ -2,7 +2,6 @@ import { removeEdgesAndNodes } from '@bigcommerce/catalyst-client';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
-import { FeaturedProductCarousel } from '@/vibes/soul/sections/featured-product-carousel';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { getSessionCustomerAccessToken } from '~/auth';
 import { Subscribe } from '~/components/subscribe';
@@ -47,21 +46,13 @@ export default async function Home({ params }: Props) {
     );
   });
 
-  const streamableNewestProducts = Streamable.from(async () => {
-    const data = await streamablePageData;
-
-    const newestProducts = removeEdgesAndNodes(data.site.newestProducts);
-
-    const { defaultOutOfStockMessage, showOutOfStockMessage, showBackorderMessage } =
-      data.site.settings?.inventory ?? {};
-
-    return productCardTransformer(
-      newestProducts,
-      format,
-      showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
-      showBackorderMessage,
-    );
-  });
+      const streamableBestSellingProducts = Streamable.from(async () => {
+      const data = await streamablePageData;
+  
+      const bestSellingProducts = removeEdgesAndNodes(data.site.bestSellingProducts);
+  
+      return productCardTransformer(bestSellingProducts, format);
+    });
 
   const streamableShowNewsletterSignup = Streamable.from(async () => {
     const data = await streamablePageData;
@@ -84,16 +75,14 @@ export default async function Home({ params }: Props) {
         title={t('FeaturedProducts.title')}
       />
 
-      <FeaturedProductCarousel
-        cta={{ label: t('NewestProducts.cta'), href: '/shop-all/?sort=newest' }}
-        description={t('NewestProducts.description')}
-        emptyStateSubtitle={t('NewestProducts.emptyStateSubtitle')}
-        emptyStateTitle={t('NewestProducts.emptyStateTitle')}
-        nextLabel={t('NewestProducts.nextProducts')}
-        previousLabel={t('NewestProducts.previousProducts')}
-        products={streamableNewestProducts}
-        title={t('NewestProducts.title')}
-      />
+             <FeaturedProductList
+              cta={{ label: t('BestSellingProducts.cta'), href: '/shop/?sort=best_selling' }}
+              description={t('BestSellingProducts.description')}
+              emptyStateSubtitle={t('BestSellingProducts.emptyStateSubtitle')}
+              emptyStateTitle={t('BestSellingProducts.emptyStateTitle')}
+              products={streamableBestSellingProducts}
+              title={t('BestSellingProducts.title')}
+            />
 
       <Stream fallback={null} value={streamableShowNewsletterSignup}>
         {(showNewsletterSignup) => showNewsletterSignup && <Subscribe />}

@@ -42,7 +42,7 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
     return (
       <span
         className={clsx(
-          'block font-semibold',
+          'block font-normal',
           {
             light: 'text-[var(--price-light-text,hsl(var(--foreground)))]',
             dark: 'text-[var(--price-dark-text,hsl(var(--background)))]',
@@ -60,7 +60,7 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
       return (
         <span
           className={clsx(
-            'block font-semibold',
+            'block font-normal',
             {
               light: 'text-[var(--price-light-text,hsl(var(--foreground)))]',
               dark: 'text-[var(--price-dark-text,hsl(var(--background)))]',
@@ -79,7 +79,7 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
 
     case 'sale':
       return (
-        <span className={clsx('block font-semibold', className)}>
+        <span className={clsx('block font-normal', className)}>
           <span className="sr-only">{t('originalPrice', { price: price.previousValue })}</span>
           <span
             aria-hidden="true"
