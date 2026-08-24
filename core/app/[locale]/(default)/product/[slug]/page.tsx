@@ -1,15 +1,17 @@
 import { removeEdgesAndNodes } from '@bigcommerce/catalyst-client';
+import { ArrowUpRight } from 'lucide-react';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { SearchParams } from 'nuqs/server';
 
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
+import { BrandDescription } from '@/vibes/soul/sections/custom/brand-description';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { ProductDetail } from '@/vibes/soul/sections/product-detail';
 import { ProductVideos } from '@/vibes/soul/sections/product-detail/product-videos';
-import { BrandDescription } from '@/vibes/soul/sections/custom/brand-description';
 import { auth, getSessionCustomerAccessToken } from '~/auth';
+import { Link } from '~/components/link';
 import { rewriteWysiwygContentUrls } from '~/data-transformers/html-content-transformer';
 import { pricesTransformer } from '~/data-transformers/prices-transformer';
 import { productCardTransformer } from '~/data-transformers/product-card-transformer';
@@ -17,6 +19,7 @@ import { productOptionsTransformer } from '~/data-transformers/product-options-t
 import { getPreferredCurrencyCode } from '~/lib/currency';
 import { getRecaptchaSiteKey } from '~/lib/recaptcha';
 import { getMetadataAlternates } from '~/lib/seo/canonical';
+import { contentAssetUrl } from '~/lib/store-assets';
 
 import { addToCart } from './_actions/add-to-cart';
 import { getMoreProductImages } from './_actions/get-more-images';
@@ -34,12 +37,6 @@ import {
   getStreamableProductInventory,
   getStreamableProductVariantInventory,
 } from './page-data';
-
-// BLAKE CUSTOM - NEXT 3 LINES
-import { Link } from '~/components/link';
-import {contentAssetUrl} from '~/lib/store-assets';
-import { ExternalLink } from 'lucide-react';
-import { ArrowUpRight } from 'lucide-react';
 
 interface Props {
   params: Promise<{ slug: string; locale: string }>;
@@ -90,7 +87,6 @@ export default async function Product({ params, searchParams }: Props) {
 
   const customerAccessToken = await getSessionCustomerAccessToken();
 
-
   setRequestLocale(locale);
 
   const t = await getTranslations('Product');
@@ -111,12 +107,11 @@ export default async function Product({ params, searchParams }: Props) {
     return notFound();
   }
 
+  // BLAKE CUSTOM - NEXT 2 LINES
+  const customFields = removeEdgesAndNodes(baseProduct.customFields);
+  const productDisplayName = customFields.slice(0, 1).map((customField) => customField.value);
 
-// BLAKE CUSTOM - NEXT 2 LINES
-      const customFields = removeEdgesAndNodes(baseProduct.customFields);
-      const productDisplayName = customFields.slice(0, 1).map((customField) => customField.value);
-
-// END BLAKE CUSTOM
+  // END BLAKE CUSTOM
 
   const streamableProduct = Streamable.from(async () => {
     const variables = {
@@ -133,8 +128,6 @@ export default async function Product({ params, searchParams }: Props) {
 
     return product;
   });
-
-  const streamableProductSku = Streamable.from(async () => (await streamableProduct).sku);
 
   const streamableProductInventory = Streamable.from(async () => {
     const variables = {
@@ -200,7 +193,8 @@ export default async function Product({ params, searchParams }: Props) {
     const product = await streamableProduct;
 
     // BLAKE TEMP FIX - USED SLICE METHOD ON IMAGES TO REMOVE THUMBNAIL
-    const images = removeEdgesAndNodes(product.images).slice(1)
+    const images = removeEdgesAndNodes(product.images)
+      .slice(1)
       .filter((image) => image.url !== product.defaultImage?.url)
       .map((image) => ({
         src: image.url,
@@ -456,29 +450,33 @@ export default async function Product({ params, searchParams }: Props) {
   const streamableSpecifications = Streamable.from(async () => {
     const product = await streamableProduct;
 
-    const customFields = removeEdgesAndNodes(product.customFields);
-     const labResults = customFields.slice(-1).map((customField) => customField.value).join('');
+    const specificationFields = removeEdgesAndNodes(product.customFields);
+    const labResults = specificationFields
+      .slice(-1)
+      .map((customField) => customField.value)
+      .join('');
 
     const specifications = [
-        {
+      {
         name: 'UPC',
         value: product.upc,
       },
-         {
+      {
         name: 'SKU',
         value: product.sku,
       },
-       ...customFields.slice(1,-1).map((field) => ({
+      ...specificationFields.slice(1, -1).map((field) => ({
         name: field.name,
         value: field.value,
       })),
-        {
-              name: 'Lab Results',
-               value: <Link href={contentAssetUrl(labResults)}
-               target="_blank"
-              >
-                View certificate of analysis <ArrowUpRight className="inline h-5" /></Link>,
-            },
+      {
+        name: 'Lab Results',
+        value: (
+          <Link href={contentAssetUrl(labResults)} target="_blank">
+            View certificate of analysis <ArrowUpRight className="inline h-5" />
+          </Link>
+        ),
+      },
     ];
 
     if (specifications.length === 0) return null;
@@ -536,20 +534,11 @@ export default async function Product({ params, searchParams }: Props) {
       id: extendedProduct.entityId,
       name: extendedProduct.name,
       sku: extendedProduct.sku,
-      upc: extendedProduct.upc,
       brand: extendedProduct.brand?.name ?? '',
-      brandPath: extendedProduct.brand?.path ?? '',
-      reviewsCount: extendedProduct.reviewSummary.numberOfReviews,
-      bullets: extendedProduct.warranty ? extendedProduct.warranty.split('\n').filter((line) => line.trim() !== '') : [],
       price: pricingProduct?.pricesIncludingTax?.price.value ?? 0,
       currency: pricingProduct?.pricesIncludingTax?.price.currencyCode ?? '',
     };
   });
-
-  const promotionCallouts = removeEdgesAndNodes(baseProduct.featuredPromotions).map((p) => ({
-    id: p.entityId.toString(),
-    text: p.text,
-  }));
 
   const streamableUser = Streamable.from(async () => {
     const session = await auth();
@@ -571,7 +560,6 @@ export default async function Product({ params, searchParams }: Props) {
       <ProductAnalyticsProvider data={streamableAnalyticsData}>
         <ProductDetail
           action={addToCart}
-  
           additionalInformationTitle={t('ProductDetails.additionalInformation')}
           ctaDisabled={streameableCtaDisabled}
           ctaLabel={streameableCtaLabel}
@@ -608,7 +596,6 @@ export default async function Product({ params, searchParams }: Props) {
             stockDisplayData: streamableStockDisplayData,
             backorderDisplayData: streamableBackorderDisplayData,
           }}
-          promotionCallouts={promotionCallouts}
           quantityLabel={t('ProductDetails.quantity')}
           recaptchaSiteKey={recaptchaSiteKey}
           reviewFormAction={submitReview}
@@ -617,22 +604,19 @@ export default async function Product({ params, searchParams }: Props) {
         />
       </ProductAnalyticsProvider>
 
-          <BrandDescription
-              title="Brand Info"
-              name={baseProduct.brand?.name ?? ''}
-            />
+      <BrandDescription name={baseProduct.brand?.name ?? ''} title="Brand Info" />
 
-            <Stream fallback={null} value={streamableVideos}>
+      <Stream fallback={null} value={streamableVideos}>
         {(videos) => videos.length > 0 && <ProductVideos videos={videos} />}
       </Stream>
 
-         <FeaturedProductList
-              cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
-              emptyStateSubtitle={t('RelatedProducts.browseCatalog')}
-              emptyStateTitle={t('RelatedProducts.noRelatedProducts')}
-              products={streameableRelatedProducts}
-              title={t('RelatedProducts.title')}
-            />
+      <FeaturedProductList
+        cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
+        emptyStateSubtitle={t('RelatedProducts.browseCatalog')}
+        emptyStateTitle={t('RelatedProducts.noRelatedProducts')}
+        products={streameableRelatedProducts}
+        title={t('RelatedProducts.title')}
+      />
 
       {showRating && (
         <div id="reviews">
@@ -673,8 +657,6 @@ export default async function Product({ params, searchParams }: Props) {
           </>
         )}
       </Stream>
-
-
     </>
   );
 }

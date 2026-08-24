@@ -159,15 +159,11 @@ export function ProductDetail<F extends Field>({
                   <div className="text-[var(--product-detail-primary-text,hsl(var(--foreground)))]">
                     {Boolean(product.subtitle) &&
                       (product.brandPath ? (
-
-
-                        
                         <Link
                           className="text-muted-foreground inline-block font-[family-name:var(--product-detail-subtitle-font-family,var(--font-family-mono))] text-sm uppercase underline"
                           href={product.brandPath}
                         >
                           {product.subtitle}
-                          
                         </Link>
                       ) : (
                         <p className="font-[family-name:var(--product-detail-subtitle-font-family,var(--font-family-mono))] text-sm uppercase">

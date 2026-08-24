@@ -187,8 +187,20 @@ const ProductQuery = graphql(
           name
           description
           path
+          upc
+          warranty
           brand {
             name
+            path
+          }
+          customFields {
+            edges {
+              node {
+                entityId
+                name
+                value
+              }
+            }
           }
           reviewSummary {
             averageRating
@@ -317,6 +329,7 @@ const StreamableProductQuery = graphql(
             }
           }
           sku
+          upc
           weight {
             value
             unit

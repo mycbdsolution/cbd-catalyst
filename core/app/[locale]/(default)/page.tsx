@@ -11,10 +11,6 @@ import { getPreferredCurrencyCode } from '~/lib/currency';
 import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { Slideshow } from './_components/slideshow';
-
-import { ScientificHero } from './_components/home-hero';
-
-
 import { getPageData } from './page-data';
 
 interface Props {
@@ -90,7 +86,7 @@ export default async function Home({ params }: Props) {
 
   return (
     <>
-   <Slideshow />
+      <Slideshow />
 
       <FeaturedProductList
         cta={{ label: t('FeaturedProducts.cta'), href: '/shop' }}
@@ -101,14 +97,14 @@ export default async function Home({ params }: Props) {
         title={t('FeaturedProducts.title')}
       />
 
-             <FeaturedProductList
-              cta={{ label: t('BestSellingProducts.cta'), href: '/shop/?sort=best_selling' }}
-              description={t('BestSellingProducts.description')}
-              emptyStateSubtitle={t('BestSellingProducts.emptyStateSubtitle')}
-              emptyStateTitle={t('BestSellingProducts.emptyStateTitle')}
-              products={streamableBestSellingProducts}
-              title={t('BestSellingProducts.title')}
-            />
+      <FeaturedProductList
+        cta={{ label: t('BestSellingProducts.cta'), href: '/shop/?sort=best_selling' }}
+        description={t('BestSellingProducts.description')}
+        emptyStateSubtitle={t('BestSellingProducts.emptyStateSubtitle')}
+        emptyStateTitle={t('BestSellingProducts.emptyStateTitle')}
+        products={streamableBestSellingProducts}
+        title={t('BestSellingProducts.title')}
+      />
 
       <Stream fallback={null} value={streamableShowNewsletterSignup}>
         {(showNewsletterSignup) => showNewsletterSignup && <Subscribe />}
