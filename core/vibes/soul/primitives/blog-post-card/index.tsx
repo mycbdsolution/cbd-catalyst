@@ -25,39 +25,72 @@ export function BlogPostCard({ blogPost, className }: Props) {
   const { author, content, date, href, image, title } = blogPost;
 
   return (
-    <Link
-      className={clsx(
-        'group max-w-full rounded-b-lg rounded-t-2xl text-foreground ring-primary ring-offset-4 @container focus:outline-0 focus-visible:ring-2',
-        className,
-      )}
-      href={href}
-    >
-      <div className="relative mb-4 aspect-[4/3] w-full overflow-hidden rounded-2xl bg-contrast-100">
-        {image?.src != null && image.src !== '' ? (
-          <Image
-            alt={image.alt}
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-            fill
-            sizes="(min-width: 80rem) 25vw, (min-width: 56rem) 33vw, (min-width: 28rem) 50vw, 100vw"
-            src={image.src}
-          />
-        ) : (
-          <div className="p-4 text-5xl font-bold leading-none tracking-tighter text-foreground/15">
-            {title}
-          </div>
-        )}
-      </div>
 
-      <div className="text-lg font-medium leading-snug">{title}</div>
-      <p className="mb-3 mt-1.5 line-clamp-3 text-sm font-normal text-contrast-400">{content}</p>
-      <div className="text-sm">
-        <time dateTime={date}>{date}</time>
+            
+<article className="relative isolate flex flex-col gap-8 lg:flex-row">
+                <div className="relative aspect-[1/1] overflow-hidden  lg:w-64 lg:shrink-0">
+ 
+                {image?.src != null && image.src !== '' ? (
+                        <Image
+                          alt={image.alt}
+                          className="absolute object-cover inset-0 size-full rounded-2xl"
+                          fill
+                          sizes="(min-width: 80rem) 25vw, (min-width: 56rem) 33vw, (min-width: 28rem) 50vw, 100vw"
+                          src={image.src}
+                        />
+                      ) : (
+                      <Image
+                          alt="laceholder image"
+                          className="absolute object-cover inset-0 size-full rounded-2xl"
+                          fill
+                          sizes="(min-width: 80rem) 25vw, (min-width: 56rem) 33vw, (min-width: 28rem) 50vw, 100vw"
+                          src="https://placehold.co/400"
+                        />
+                      )}
+      
+                  <div className="absolute inset-0 rounded-2xl shadow-md" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-x-4 text-xs">
+
+
+                        <time dateTime={date} className="text-green-400">
+          {new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </time>
         {date !== '' && author != null && author !== '' && (
           <span className="after:mx-2 after:content-['•']" />
         )}
-        {author != null && author !== '' && <span>{author}</span>}
-      </div>
-    </Link>
+              
+
+                  </div>
+                  <div className="group relative max-w-xl">
+                    <h3 className="text-2xl font-bold leading-none tracking-tighter xl:text-5xl">
+                        <Link href={href}>
+                        <span className="absolute inset-0" />
+                                {title}
+                        </Link>
+                    </h3>
+                    <p className="truncat mt-5 text-sm/6 text-gray-600 dark:text-gray-400">{content}...</p>
+                  </div>
+                  <div className="mt-6 flex border-t border-gray-900/5 pt-6 dark:border-white/10">
+                    <div className="relative flex items-center gap-x-4">
+                   
+                      <div className="text-sm/6">
+                           <Link href={href} className="relative z-10 rounded-full bg-gray-50 px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-100 dark:bg-gray-800/60 dark:text-gray-300 dark:hover:bg-gray-800">
+                category here
+                </Link>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+
   );
 }
 

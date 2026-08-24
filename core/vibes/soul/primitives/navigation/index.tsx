@@ -13,7 +13,7 @@ import {
   Search,
   SearchIcon,
   ShoppingBag,
-  User,
+  CircleUserRound,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
 import React, {
@@ -564,7 +564,7 @@ export const Navigation = forwardRef(function Navigation<S extends SearchResult>
                   onPointerLeave={(e) => e.preventDefault()}
                   onPointerMove={(e) => e.preventDefault()}
                 >
-                  <Search size={20} strokeWidth={1} />
+                  <Search size={25} strokeWidth={1} />
                 </button>
               </Popover.Trigger>
               <Popover.Portal>
@@ -588,10 +588,10 @@ export const Navigation = forwardRef(function Navigation<S extends SearchResult>
           )}
 
           <Link aria-label={accountLabel} className={navButtonClassName} href={accountHref}>
-            <User size={20} strokeWidth={1} />
+            <CircleUserRound size={25} strokeWidth={1} />
           </Link>
           <Link aria-label={cartLabel} className={navButtonClassName} href={cartHref}>
-            <ShoppingBag size={20} strokeWidth={1} />
+            <ShoppingBag size={25} strokeWidth={1} />
             <Stream
               fallback={
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 animate-pulse items-center justify-center rounded-full bg-contrast-100 text-xs text-background" />

@@ -304,7 +304,7 @@ const StreamableProductQuery = graphql(
             altText
             url: urlTemplate(lossy: true)
           }
-            videos {
+                videos(first: 25) {
               edges {
                 node {
                   title

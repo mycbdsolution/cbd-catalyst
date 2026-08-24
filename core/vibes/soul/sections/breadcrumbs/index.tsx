@@ -41,7 +41,7 @@ export function Breadcrumbs({ breadcrumbs: streamableBreadcrumbs, className }: B
 
         return (
           <nav aria-label="breadcrumb" className={clsx(className)}>
-            <ol className="flex flex-wrap items-center gap-x-1.5 text-sm @xl:text-base">
+            <ol className="flex flex-wrap items-center gap-x-1.5 text-xs @xl:text-sm">
               {breadcrumbs.map(({ label, href }, index) => {
                 if (index < breadcrumbs.length - 1) {
                   return (
@@ -54,7 +54,7 @@ export function Breadcrumbs({ breadcrumbs: streamableBreadcrumbs, className }: B
                       <ChevronRight
                         aria-hidden="true"
                         className="text-[var(--breadcrumbs-icon,hsl(var(--contrast-500)))]"
-                        size={20}
+                        size={15}
                         strokeWidth={1}
                       />
                     </li>
@@ -63,10 +63,10 @@ export function Breadcrumbs({ breadcrumbs: streamableBreadcrumbs, className }: B
 
                 return (
                   <li
-                    className="inline-flex items-center font-[family-name:var(--breadcrumbs-font-family,var(--font-family-body))] text-[var(--breadcrumbs-secondary-text,hsl(var(--contrast-500)))]"
+                    className="inline-flex items-center font-[family-name:var(--breadcrumbs-font-family,var(--font-family-body))] text-gray-400 max-w-xs"
                     key={index}
                   >
-                    <span aria-current="page" aria-disabled="true" role="link">
+                    <span aria-current="page" aria-disabled="true" role="link" className="truncate">
                       {label}
                     </span>
                   </li>

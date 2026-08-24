@@ -11,6 +11,10 @@ import { getPreferredCurrencyCode } from '~/lib/currency';
 import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { Slideshow } from './_components/slideshow';
+
+import { ScientificHero } from './_components/home-hero';
+
+
 import { getPageData } from './page-data';
 
 interface Props {
@@ -74,10 +78,10 @@ export default async function Home({ params }: Props) {
 
   return (
     <>
-      <Slideshow />
+   <Slideshow />
 
       <FeaturedProductList
-        cta={{ label: t('FeaturedProducts.cta'), href: '/shop-all' }}
+        cta={{ label: t('FeaturedProducts.cta'), href: '/shop' }}
         description={t('FeaturedProducts.description')}
         emptyStateSubtitle={t('FeaturedProducts.emptyStateSubtitle')}
         emptyStateTitle={t('FeaturedProducts.emptyStateTitle')}

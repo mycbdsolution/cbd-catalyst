@@ -7,6 +7,7 @@ import { SearchParams } from 'nuqs/server';
 import { Stream, Streamable } from '@/vibes/soul/lib/streamable';
 import { FeaturedProductList } from '@/vibes/soul/sections/featured-product-list';
 import { ProductDetail } from '@/vibes/soul/sections/product-detail';
+import { ProductVideos } from '@/vibes/soul/sections/product-detail/product-videos';
 import { BrandDescription } from '@/vibes/soul/sections/custom/brand-description';
 import { auth, getSessionCustomerAccessToken } from '~/auth';
 import { pricesTransformer } from '~/data-transformers/prices-transformer';
@@ -216,6 +217,18 @@ export default async function Product({ params, searchParams }: Props) {
         : images,
       pageInfo: product.images.pageInfo,
     };
+  });
+
+    // Product videos render in their own section below the primary content, so
+  // they're streamed independently of the gallery images. The Storefront
+  // GraphQL API returns each video as { title, url } (a YouTube watch URL).
+  const streamableVideos = Streamable.from(async () => {
+    const product = await streamableProduct;
+
+    return removeEdgesAndNodes(product.videos).map((video) => ({
+      url: video.url,
+      title: video.title,
+    }));
   });
 
   const streameableCtaLabel = Streamable.from(async () => {
@@ -444,13 +457,11 @@ export default async function Product({ params, searchParams }: Props) {
     };
   });
 
-  const streameableAccordions = Streamable.from(async () => {
+  const streamableSpecifications = Streamable.from(async () => {
     const product = await streamableProduct;
 
     const customFields = removeEdgesAndNodes(product.customFields);
      const labResults = customFields.slice(-1).map((customField) => customField.value).join('');
-
-     const bullets = product.warranty ? product.warranty.split('\n').filter((line) => line.trim() !== '') : [];
 
     const specifications = [
         {
@@ -474,28 +485,25 @@ export default async function Product({ params, searchParams }: Props) {
             },
     ];
 
-    return [
-        ...(specifications.length
-        ? [
-            {
-              title: t('ProductDetails.Accordions.specifications'),
-              content: (
-                <div className="@container">
-                  <dl className="mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2 sm:gap-y-12 lg:max-w-none lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-                    {specifications.map((field, index) => (
-                      <div className="border-t border-gray-200 pt-4" key={index}>
-                        <dt className="font-semibold font-mono text-gray-500 uppercase text-sm [word-spacing:-0.16rem]">{field.name}</dt>
-                        <dd className="mt-2">{field.value}</dd>
-                        </div>
-                    ))}
-                  </dl>
-                </div>
-              ),
-            },
-          ]
-        : []),
+    if (specifications.length === 0) return null;
 
-    ];
+    return {
+      title: t('ProductDetails.Accordions.specifications'),
+      content: (
+        <div className="@container">
+          <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2 sm:gap-y-12 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+            {specifications.map((field, index) => (
+              <div className="border-t border-gray-200 pt-4" key={index}>
+                <dt className="font-mono text-sm font-semibold uppercase text-gray-500 [word-spacing:-0.16rem]">
+                  {field.name}
+                </dt>
+                <dd className="mt-2">{field.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ),
+    };
   });
 
   const streameableRelatedProducts = Streamable.from(async () => {
@@ -587,7 +595,7 @@ export default async function Product({ params, searchParams }: Props) {
             brandPath: baseProduct.brand?.path,
             rating: baseProduct.reviewSummary.averageRating,
             reviewsCount: baseProduct.reviewSummary.numberOfReviews,
-            accordions: streameableAccordions,
+            specifications: streamableSpecifications,
             minQuantity: streamableMinQuantity,
             maxQuantity: streamableMaxQuantity,
             stockDisplayData: streamableStockDisplayData,
@@ -605,6 +613,10 @@ export default async function Product({ params, searchParams }: Props) {
               title="Brand Info"
               name={baseProduct.brand?.name ?? ''}
             />
+
+            <Stream fallback={null} value={streamableVideos}>
+        {(videos) => videos.length > 0 && <ProductVideos videos={videos} />}
+      </Stream>
 
          <FeaturedProductList
               cta={{ label: t('RelatedProducts.cta'), href: '/shop-all' }}
