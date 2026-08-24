@@ -69,6 +69,9 @@ interface Props {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { slug, locale } = await props.params;
+
+  setRequestLocale(locale);
+
   const customerAccessToken = await getSessionCustomerAccessToken();
 
   const brandId = Number(slug);
@@ -110,18 +113,22 @@ export default async function Brand(props: Props) {
   const productComparisonsEnabled =
     settings?.storefront.catalog?.productComparisonsEnabled ?? false;
 
+  const taxDisplay = settings?.tax?.plp;
+
   const streamableFacetedSearch = Streamable.from(async () => {
     const searchParams = await props.searchParams;
     const currencyCode = await getPreferredCurrencyCode();
 
     const loadSearchParams = await createBrandSearchParamsLoader(slug, customerAccessToken);
     const parsedSearchParams = loadSearchParams?.(searchParams) ?? {};
+    const sort = typeof searchParams.sort === 'string' ? searchParams.sort : 'featured';
 
     const search = await fetchFacetedSearch(
       {
         ...searchParams,
         ...parsedSearchParams,
         brand: [slug],
+        sort,
       },
       currencyCode,
       customerAccessToken,
@@ -144,6 +151,7 @@ export default async function Brand(props: Props) {
       format,
       showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
       showBackorderMessage,
+      taxDisplay,
     );
   });
 

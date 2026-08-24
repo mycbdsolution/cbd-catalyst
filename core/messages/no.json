@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Beklager, ingen resultater for «{term}».",
                 "subtitle": "Prøv et nytt søk."
-            }
+            },
+            "semanticSearchPlaceholder": "Beskriv hva du leter etter"
         },
         "FacetedSearch": {
             "filters": "Filtre",
@@ -379,6 +380,7 @@
             "subTotal": "Delsum",
             "discounts": "Rabatter",
             "tax": "Avgift",
+            "totalIncludesTax": "Inkludert {tax} avgift",
             "total": "Totalbeløp",
             "CouponCode": {
                 "apply": "Bruk",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Frakt",
+                "shippingExcludingTax": "Frakt (ekskl. avgift)",
                 "add": "Legg til",
                 "change": "Endre",
                 "cancel": "Avbryt",
@@ -444,6 +447,8 @@
         "otherDetails": "Andre detaljer",
         "noOtherDetails": "Det er ingen andre detaljer.",
         "viewOptions": "Vis alternativer",
+        "showMore": "Vis mer",
+        "showLess": "Vis mindre",
         "successMessage": "{cartItems, plural, =1 {1 vare} other {# varer}} lagt til i <cartLink>handlekurven din</cartLink>",
         "missingCart": "Handlekurv ikke funnet. Prøv på nytt senere.",
         "unknownError": "Ukjent feil. Prøv på nytt senere."
@@ -464,8 +469,14 @@
             "additionalInformation": "Mer informasjon",
             "currentStock": "{antall, nummer} på lager",
             "backorderQuantity": "{antall, nummer} vil være restordre",
+            "maxPurchasableQuantity": "Maksimalt kjøpsantall er {quantity, number}. Juster, og prøv igjen.",
             "loadingMoreImages": "Laster inn flere bilder",
             "imagesLoaded": "{count, plural, =1 {1 bilde til ble lastet inn} other {# flere bilder ble lastet inn}}",
+            "playVideo": "Spill av video",
+            "viewVideo": "Vis video",
+            "videosTitle": "Videoer",
+            "hideVideos": "Skjul videoer",
+            "showVideos": "Vis videoer",
             "Submit": {
                 "addToCart": "Legg i handlekurv",
                 "outOfStock": "Utsolgt",
@@ -559,6 +570,9 @@
         "search": "Søk"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+{count, plural, =1 {# flere tilbud} other {# flere tilbud}}"
+        },
         "Header": {
             "home": "Hjem",
             "toggleNavigation": "Veksle navigasjon",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "Opprinnelig pris var {price}.",
             "currentPrice": "Nåværende pris er {price}.",
-            "range": "Pris fra {minValue} til {maxValue}."
+            "range": "Pris fra {minValue} til {maxValue}.",
+            "includingTax": "(Inkl. avgift)",
+            "excludingTax": "(Ekskl. avgift)",
+            "includingTaxFull": "Inkludert avgifter",
+            "excludingTaxFull": "Ekskludert avgifter"
         }
     },
     "GiftCertificates": {

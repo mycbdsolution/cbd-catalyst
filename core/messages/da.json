@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Beklager, der var ingen resultater for “{term}”.",
                 "subtitle": "Prøv en anden søgning."
-            }
+            },
+            "semanticSearchPlaceholder": "Beskriv, hvad du leder efter"
         },
         "FacetedSearch": {
             "filters": "Filtre",
@@ -379,6 +380,7 @@
             "subTotal": "Subtotal",
             "discounts": "Rabatter",
             "tax": "Moms",
+            "totalIncludesTax": "Inklusiv {tax} moms",
             "total": "I alt",
             "CouponCode": {
                 "apply": "Anvend",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Forsendelse",
+                "shippingExcludingTax": "Forsendelse (ekskl. moms)",
                 "add": "Tilføj",
                 "change": "Ændr",
                 "cancel": "Annuller",
@@ -444,6 +447,8 @@
         "otherDetails": "Andre oplysninger",
         "noOtherDetails": "Der er ingen andre oplysninger.",
         "viewOptions": "Se muligheder",
+        "showMore": "Vis flere",
+        "showLess": "Vis mindre",
         "successMessage": "{cartItems, plural, =1 {1 vare} other {# varer}} tilføjet til <cartLink>din indkøbskurv</cartLink>",
         "missingCart": "Indkøbskurven blev ikke fundet. Prøv igen senere.",
         "unknownError": "Ukendt fejl. Prøv igen senere."
@@ -464,8 +469,14 @@
             "additionalInformation": "Yderligere oplysninger",
             "currentStock": "{antal, number} på lager",
             "backorderQuantity": "{antal, number} vil være i restordre",
+            "maxPurchasableQuantity": "Den maksimale købsmængde er {quantity, number}. Juster, og prøv igen.",
             "loadingMoreImages": "Indlæser flere billeder",
             "imagesLoaded": "{count, plural, =1 {1 yderligere billede indlæst} other {# yderligere billeder indlæst}}",
+            "playVideo": "Afspil video",
+            "viewVideo": "Se video",
+            "videosTitle": "Videoer",
+            "hideVideos": "Skjul videoer",
+            "showVideos": "Vis videoer",
             "Submit": {
                 "addToCart": "Føj til kurv",
                 "outOfStock": "Udsolgt",
@@ -559,6 +570,9 @@
         "search": "Søg"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+{count, plural, =1 {# flere tilbud} other {# flere tilbud}}"
+        },
         "Header": {
             "home": "Hjem",
             "toggleNavigation": "Skift navigation",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "Den oprindelige pris var {price}.",
             "currentPrice": "Den aktuelle pris er {price}.",
-            "range": "Pris fra {minValue} til {maxValue}."
+            "range": "Pris fra {minValue} til {maxValue}.",
+            "includingTax": "(Inkl. moms)",
+            "excludingTax": "(Ekskl. moms)",
+            "includingTaxFull": "Inklusiv skat",
+            "excludingTaxFull": "Eksklusiv skat"
         }
     },
     "GiftCertificates": {

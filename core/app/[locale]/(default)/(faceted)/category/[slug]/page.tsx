@@ -71,6 +71,9 @@ interface Props {
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
   const { slug, locale } = await props.params;
+
+  setRequestLocale(locale);
+
   const customerAccessToken = await getSessionCustomerAccessToken();
 
   const categoryId = Number(slug);
@@ -125,6 +128,13 @@ export default async function Category(props: Props) {
   const productComparisonsEnabled =
     settings?.storefront.catalog?.productComparisonsEnabled ?? false;
 
+  const taxDisplay = settings?.tax?.plp;
+
+  const categoryDefaultSort =
+    category.defaultProductSort && category.defaultProductSort !== 'DEFAULT'
+      ? category.defaultProductSort.toLowerCase()
+      : 'featured';
+
   const streamableFacetedSearch = Streamable.from(async () => {
     const searchParams = await props.searchParams;
     const currencyCode = await getPreferredCurrencyCode();
@@ -134,12 +144,14 @@ export default async function Category(props: Props) {
       customerAccessToken,
     );
     const parsedSearchParams = loadSearchParams?.(searchParams) ?? {};
+    const sort = typeof searchParams.sort === 'string' ? searchParams.sort : categoryDefaultSort;
 
     const search = await fetchFacetedSearch(
       {
         ...searchParams,
         ...parsedSearchParams,
         category: categoryId,
+        sort,
       },
       currencyCode,
       customerAccessToken,
@@ -162,6 +174,7 @@ export default async function Category(props: Props) {
       format,
       showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
       showBackorderMessage,
+      taxDisplay,
     );
   });
 
@@ -266,7 +279,7 @@ export default async function Category(props: Props) {
         resetFiltersLabel={t('FacetedSearch.resetFilters')}
         showCompare={productComparisonsEnabled}
         showRating={showRating}
-        sortDefaultValue="featured"
+        sortDefaultValue={categoryDefaultSort}
         sortLabel={t('SortBy.sortBy')}
         sortOptions={[
           { value: 'featured', label: t('SortBy.featuredItems') },
@@ -284,7 +297,13 @@ export default async function Category(props: Props) {
         totalCount={streamableTotalCount}
       />
       <Stream value={streamableFacetedSearch}>
-        {(search) => <CategoryViewed category={category} products={search.products.items} />}
+        {(search) => (
+          <CategoryViewed
+            category={category}
+            products={search.products.items}
+            taxDisplay={taxDisplay}
+          />
+        )}
       </Stream>
     </>
   );

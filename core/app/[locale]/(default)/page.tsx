@@ -51,22 +51,34 @@ export default async function Home({ params }: Props) {
 
     const { defaultOutOfStockMessage, showOutOfStockMessage, showBackorderMessage } =
       data.site.settings?.inventory ?? {};
+    const taxDisplay = data.site.settings?.tax?.plp;
 
     return productCardTransformer(
       featuredProducts,
       format,
       showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
       showBackorderMessage,
+      taxDisplay,
     );
   });
 
-      const streamableBestSellingProducts = Streamable.from(async () => {
-      const data = await streamablePageData;
-  
-      const bestSellingProducts = removeEdgesAndNodes(data.site.bestSellingProducts);
-  
-      return productCardTransformer(bestSellingProducts, format);
-    });
+  const streamableBestSellingProducts = Streamable.from(async () => {
+    const data = await streamablePageData;
+
+    const bestSellingProducts = removeEdgesAndNodes(data.site.bestSellingProducts);
+
+    const { defaultOutOfStockMessage, showOutOfStockMessage, showBackorderMessage } =
+      data.site.settings?.inventory ?? {};
+    const taxDisplay = data.site.settings?.tax?.plp;
+
+    return productCardTransformer(
+      bestSellingProducts,
+      format,
+      showOutOfStockMessage ? defaultOutOfStockMessage : undefined,
+      showBackorderMessage,
+      taxDisplay,
+    );
+  });
 
   const streamableShowNewsletterSignup = Streamable.from(async () => {
     const data = await streamablePageData;

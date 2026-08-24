@@ -22,10 +22,6 @@ const SettingsQuery = graphql(`
           cdnUrl
           checkoutUrl
         }
-        locales {
-          code
-          isDefault
-        }
       }
     }
   }
@@ -49,7 +45,6 @@ async function writeSettingsToBuildConfig() {
   }
 
   return await writeBuildConfig({
-    locales: data.site.settings?.locales,
     urls: {
       ...data.site.settings?.url,
       cdnUrls,
@@ -65,7 +60,7 @@ export default async (): Promise<NextConfig> => {
     experimental: {
       optimizePackageImports: ['@icons-pack/react-simple-icons'],
     },
-       images: {
+    images: {
       // Allow product-video poster thumbnails (YouTube) through next/image.
       remotePatterns: [{ protocol: 'https', hostname: 'i.ytimg.com', pathname: '/vi/**' }],
     },

@@ -7,7 +7,7 @@ import { ExistingResultType } from '~/client/util';
 import { ProductCardFragment } from '~/components/product-card/fragment';
 import { WishlistItemProductFragment } from '~/components/wishlist/fragment';
 
-import { pricesTransformer } from './prices-transformer';
+import { pricesTransformer, TaxDisplay } from './prices-transformer';
 
 const getInventoryMessage = (
   product: ResultOf<typeof ProductCardFragment>,
@@ -51,6 +51,7 @@ export const singleProductCardTransformer = (
   format: ExistingResultType<typeof getFormatter>,
   outOfStockMessage?: string,
   showBackorderMessage?: boolean,
+  taxDisplay?: TaxDisplay | null,
 ): Product => {
   return {
     id: product.entityId.toString(),
@@ -59,13 +60,20 @@ export const singleProductCardTransformer = (
     image: product.defaultImage
       ? { src: product.defaultImage.url, alt: product.defaultImage.altText }
       : undefined,
-    price: pricesTransformer(product.prices, format),
+    price: pricesTransformer(product, format, taxDisplay),
     subtitle: product.brand?.name ?? undefined,
     rating: product.reviewSummary.averageRating,
     numberOfReviews: product.reviewSummary.numberOfReviews,
     inventoryMessage:
       'variants' in product
         ? getInventoryMessage(product, outOfStockMessage, showBackorderMessage)
+        : undefined,
+    promotions:
+      'featuredPromotions' in product
+        ? removeEdgesAndNodes(product.featuredPromotions).map((p) => ({
+            id: p.entityId.toString(),
+            text: p.text,
+          }))
         : undefined,
   };
 };
@@ -75,8 +83,15 @@ export const productCardTransformer = (
   format: ExistingResultType<typeof getFormatter>,
   outOfStockMessage?: string,
   showBackorderMessage?: boolean,
+  taxDisplay?: TaxDisplay | null,
 ): Product[] => {
   return products.map((product) =>
-    singleProductCardTransformer(product, format, outOfStockMessage, showBackorderMessage),
+    singleProductCardTransformer(
+      product,
+      format,
+      outOfStockMessage,
+      showBackorderMessage,
+      taxDisplay,
+    ),
   );
 };

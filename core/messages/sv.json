@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Tyvärr finns inga resultat för ”{term}”.",
                 "subtitle": "Försök med en ny sökning."
-            }
+            },
+            "semanticSearchPlaceholder": "Beskriv vad du letar efter"
         },
         "FacetedSearch": {
             "filters": "Filter",
@@ -379,6 +380,7 @@
             "subTotal": "Delsumma",
             "discounts": "Rabatter",
             "tax": "Beskatta",
+            "totalIncludesTax": "Inklusive {tax} moms",
             "total": "Total",
             "CouponCode": {
                 "apply": "Tillämpa",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Frakt",
+                "shippingExcludingTax": "Frakt (exkl. moms)",
                 "add": "Lägg till",
                 "change": "Ändra",
                 "cancel": "Annullera",
@@ -444,6 +447,8 @@
         "otherDetails": "Övrig information",
         "noOtherDetails": "Det finns inga övriga detaljer.",
         "viewOptions": "Visa alternativ",
+        "showMore": "Visa mer",
+        "showLess": "Visa mindre",
         "successMessage": "{cartItems, plural, =1 {1 Item} other {# Items}} har lagts till <cartLink> i kundvagnen</cartLink>",
         "missingCart": "Kundvagnen hittades inte. Försök igen senare.",
         "unknownError": "Okänt fel. Försök igen senare."
@@ -464,8 +469,14 @@
             "additionalInformation": "Ytterligare information",
             "currentStock": "{quantity, number} i lager",
             "backorderQuantity": "{quantity, number} kommer att vara restnoterade",
+            "maxPurchasableQuantity": "Den maximala köpbara kvantiteten är {quantity, number}. Justera och försök igen.",
             "loadingMoreImages": "Laddar fler bilder",
             "imagesLoaded": "{count, plural, =1 {1 till bild har laddats} other {# till bilder har laddats}}",
+            "playVideo": "Spela upp video",
+            "viewVideo": "Visa video",
+            "videosTitle": "Videor",
+            "hideVideos": "Dölj videor",
+            "showVideos": "Visa videor",
             "Submit": {
                 "addToCart": "Lägg till i kundvagn",
                 "outOfStock": "Ej i lager",
@@ -559,6 +570,9 @@
         "search": "Sök"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+ {count, plural, =1 {# erbjudande till} other {# erbjudanden till}}"
+        },
         "Header": {
             "home": "Hem",
             "toggleNavigation": "Växla navigering",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "Ursprungligt pris var {price}.",
             "currentPrice": "Nuvarande pris är {price}.",
-            "range": "Pris från {minValue} till {maxValue}."
+            "range": "Pris från {minValue} till {maxValue}.",
+            "includingTax": "(Inkl. moms)",
+            "excludingTax": "(Exkl. moms)",
+            "includingTaxFull": "Inklusive skatt",
+            "excludingTaxFull": "Exklusive skatt"
         }
     },
     "GiftCertificates": {

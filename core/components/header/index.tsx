@@ -10,12 +10,13 @@ import { graphql, readFragment } from '~/client/graphql';
 import { revalidate } from '~/client/revalidate-target';
 import { TAGS } from '~/client/tags';
 import { logoTransformer } from '~/data-transformers/logo-transformer';
-import { routing } from '~/i18n/routing';
+import { getLocaleRouting } from '~/i18n/locale-config';
 import { getCartId } from '~/lib/cart';
 import { getPreferredCurrencyCode } from '~/lib/currency';
 
 import { search } from './_actions/search';
 import { switchCurrency } from './_actions/switch-currency';
+import { switchLocale } from './_actions/switch-locale';
 import { CurrencyCode, HeaderFragment, HeaderLinksFragment } from './fragment';
 
 const GetCartCountQuery = graphql(`
@@ -78,7 +79,9 @@ export const Header = async () => {
 
   const logo = data.settings ? logoTransformer(data.settings) : '';
 
-  const locales = routing.locales.map((enabledLocales) => ({
+  const localeRouting = await getLocaleRouting();
+
+  const locales = localeRouting.locales.map((enabledLocales) => ({
     id: enabledLocales,
     label: enabledLocales.toLocaleUpperCase(),
   }));
@@ -176,6 +179,7 @@ export const Header = async () => {
         cartCount: streamableCartCount,
         activeLocaleId: locale,
         locales,
+        localeAction: switchLocale,
         currencies,
         activeCurrencyId: streamableActiveCurrencyId,
         currencyAction: switchCurrency,

@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Leider gibt es keine Ergebnisse für „{term}“.",
                 "subtitle": "Bitte versuchen Sie es mit einer anderen Suchanfrage."
-            }
+            },
+            "semanticSearchPlaceholder": "Beschreiben Sie, wonach Sie suchen"
         },
         "FacetedSearch": {
             "filters": "Filter",
@@ -379,6 +380,7 @@
             "subTotal": "Zwischensumme",
             "discounts": "Rabatte",
             "tax": "Steuern",
+            "totalIncludesTax": "Inklusive {tax} Steuern",
             "total": "Summe",
             "CouponCode": {
                 "apply": "Anwenden",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Versand",
+                "shippingExcludingTax": "Versand (ohne Steuer)",
                 "add": "Hinzufügen",
                 "change": "Ändern",
                 "cancel": "Abbrechen",
@@ -444,6 +447,8 @@
         "otherDetails": "Weitere Angaben",
         "noOtherDetails": "Es gibt keine weiteren Details.",
         "viewOptions": "Optionen anzeigen",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen",
         "successMessage": "{cartItems, plural, =1 {1 Item} other {# Items}} wurde zu<cartLink> Ihrem Warenkorb</cartLink> hinzugefügt",
         "missingCart": "Warenkorb nicht gefunden. Bitte versuchen Sie es später erneut.",
         "unknownError": "Unbekannter Fehler. Bitte versuchen Sie es später erneut."
@@ -464,8 +469,14 @@
             "additionalInformation": "Weitere Informationen",
             "currentStock": "{quantity, number} auf Lager",
             "backorderQuantity": "{quantity, number} wird nachbestellt",
+            "maxPurchasableQuantity": "Die maximale Abnahmemenge beträgt {quantity, number}. Bitte passen Sie dies an und versuchen Sie es erneut.",
             "loadingMoreImages": "Weitere Bilder werden geladen",
             "imagesLoaded": "{count, plural, =1 {1 weiteres Bild geladen, } other {# weitere Bilder geladen, }}",
+            "playVideo": "Video abspielen",
+            "viewVideo": "Video ansehen",
+            "videosTitle": "Videos",
+            "hideVideos": "Videos ausblenden",
+            "showVideos": "Videos anzeigen",
             "Submit": {
                 "addToCart": "Zum Warenkorb hinzufügen",
                 "outOfStock": "Kein Lagerbestand",
@@ -559,6 +570,9 @@
         "search": "Suchen"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+{count, plural, =1 {# weiteres Angebot} other {# weitere Angebote}}"
+        },
         "Header": {
             "home": "Startseite",
             "toggleNavigation": "Navigation ein-/ausschalten",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "Der ursprüngliche Preis war {price}.",
             "currentPrice": "Der aktuelle Preis beträgt {price}.",
-            "range": "Preis von {minValue} bis {maxValue}."
+            "range": "Preis von {minValue} bis {maxValue}.",
+            "includingTax": "(Inkl. Steuer)",
+            "excludingTax": "(Ohne Steuer)",
+            "includingTaxFull": "Einschließlich Steuern",
+            "excludingTaxFull": "Ohne Steuern"
         }
     },
     "GiftCertificates": {

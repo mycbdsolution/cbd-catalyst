@@ -24,6 +24,12 @@ const SearchPageQuery = graphql(`
         reviews {
           enabled
         }
+        tax {
+          plp
+        }
+        search {
+          defaultSearchProductSort
+        }
       }
     }
   }

@@ -12,6 +12,7 @@ const CategoryPageQuery = graphql(
         category(entityId: $entityId) {
           entityId
           name
+          defaultProductSort
           ...BreadcrumbsFragment
           seo {
             pageTitle
@@ -50,6 +51,9 @@ const CategoryPageQuery = graphql(
           }
           reviews {
             enabled
+          }
+          tax {
+            plp
           }
         }
       }

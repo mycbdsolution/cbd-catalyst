@@ -1,4 +1,12 @@
 import { clsx } from 'clsx';
+import { useTranslations } from 'next-intl';
+import {
+  Content as CalloutContent,
+  Description as CalloutDescription,
+  Header as CalloutHeader,
+  Root as CalloutRoot,
+  Title as CalloutTitle,
+} from 'storefront-kit/callout';
 
 import { Badge } from '@/vibes/soul/primitives/badge';
 import { Price, PriceLabel } from '@/vibes/soul/primitives/price-label';
@@ -21,6 +29,7 @@ export interface Product {
   rating?: number;
   inventoryMessage?: string;
   numberOfReviews?: number;
+  promotions?: Array<{ id: string; text: string }>;
 }
 
 export interface ProductCardProps {
@@ -70,6 +79,7 @@ export function ProductCard({
     inventoryMessage,
     rating,
     numberOfReviews,
+    promotions,
   },
   showRating = false,
   colorScheme = 'light',
@@ -81,6 +91,8 @@ export function ProductCard({
   imagePriority = false,
   imageSizes = '(min-width: 80rem) 20vw, (min-width: 64rem) 25vw, (min-width: 42rem) 33vw, (min-width: 24rem) 50vw, 100vw',
 }: ProductCardProps) {
+  const t = useTranslations('Components.ProductCard');
+
   return (
     <article
       className={clsx(
@@ -107,7 +119,7 @@ export function ProductCard({
             <Image
               alt={image.alt}
               className={clsx(
-                'w-full scale-100 select-none object-cover transition-transform duration-500 ease-out',
+                'w-full scale-100 select-none object-cover transition-transform duration-500 ease-out group-hover:scale-110',
                 {
                   light: 'bg-[var(--product-card-light-background,hsl(var(--contrast-100))]',
                   dark: 'bg-[var(--product-card-dark-background,hsl(var(--contrast-500))]',
@@ -121,7 +133,7 @@ export function ProductCard({
           ) : (
             <div
               className={clsx(
-                'break-words pl-5 pt-5 text-4xl font-bold leading-[0.8] tracking-tighter opacity-25 transition-transform duration-500 ease-out @xs:text-7xl',
+                'break-words pl-5 pt-5 text-4xl font-bold leading-[0.8] tracking-tighter opacity-25 transition-transform duration-500 ease-out group-hover:scale-105 @xs:text-7xl',
                 {
                   light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
                   dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',
@@ -140,34 +152,53 @@ export function ProductCard({
 
         <div className="mt-2 flex flex-col items-start gap-x-4 gap-y-3 px-1 @xs:mt-3 @2xl:flex-row">
           <div className="flex-1 text-sm @[16rem]:text-base">
-           
+            <span
+              className={clsx(
+                'line-clamp-2 font-semibold',
+                {
+                  light: 'text-[var(--product-card-light-title,hsl(var(--foreground)))]',
+                  dark: 'text-[var(--product-card-dark-title,hsl(var(--background)))]',
+                }[colorScheme],
+              )}
+            >
+              {title}
+            </span>
             {subtitle != null && subtitle !== '' && (
               <span
                 className={clsx(
-                  'block text-xs font-mono uppercase',
+                  'mb-1.5 block text-sm font-normal',
                   {
-                    light: 'text-gray-400',
-                    dark: 'text-gray-400',
+                    light: 'text-[var(--product-card-light-subtitle,hsl(var(--foreground)/75%))]',
+                    dark: 'text-[var(--product-card-dark-subtitle,hsl(var(--background)/75%))]',
                   }[colorScheme],
                 )}
               >
                 {subtitle}
               </span>
             )}
-
-             <span
-              className={clsx(
-                'line-clamp-2 font-normal tracking-tight mb-1.5 text-lg 2xl:text-xl ',
-                {
-                  light: 'text-gray-900',
-                  dark: 'text-gray-900',
-                }[colorScheme],
-              )}
-            >
-              {title}
-            </span>
-
-            {price != null && <PriceLabel className="text-gray-400 font-normal text-sm" colorScheme={colorScheme} price={price} />}
+            {price != null && (
+              <PriceLabel
+                className="[&_abbr]:cursor-default [&_abbr]:no-underline"
+                colorScheme={colorScheme}
+                price={price}
+              />
+            )}
+            {promotions != null && promotions.length > 0 && (
+              <div className="mt-1.5">
+                <CalloutRoot size="small" variant="warning">
+                  <CalloutContent>
+                    <CalloutHeader>
+                      <CalloutTitle>{promotions[0]?.text ?? ''}</CalloutTitle>
+                      {promotions.length > 1 && (
+                        <CalloutDescription>
+                          {t('moreOffers', { count: promotions.length - 1 })}
+                        </CalloutDescription>
+                      )}
+                    </CalloutHeader>
+                  </CalloutContent>
+                </CalloutRoot>
+              </div>
+            )}
             {showRating && typeof rating === 'number' && rating > 0 && (
               <Rating className="mb-2 mt-1" numberOfReviews={numberOfReviews} rating={rating} />
             )}

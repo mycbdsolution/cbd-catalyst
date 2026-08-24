@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Sorry, geen resultaten voor '{term}'.",
                 "subtitle": "Probeer een andere zoekopdracht"
-            }
+            },
+            "semanticSearchPlaceholder": "Beschrijf wat je zoekt"
         },
         "FacetedSearch": {
             "filters": "Filters",
@@ -379,6 +380,7 @@
             "subTotal": "Subtotaal",
             "discounts": "Kortingen",
             "tax": "Belasting",
+            "totalIncludesTax": "Inclusief {tax} btw",
             "total": "Totaal",
             "CouponCode": {
                 "apply": "Toepassen",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Verzending",
+                "shippingExcludingTax": "Verzending (excl. btw)",
                 "add": "Toevoegen",
                 "change": "Wijzigen",
                 "cancel": "Annuleren",
@@ -444,6 +447,8 @@
         "otherDetails": "Overige details",
         "noOtherDetails": "Er zijn geen verdere details.",
         "viewOptions": "Opties weergeven",
+        "showMore": "Meer weergeven",
+        "showLess": "Minder weergeven",
         "successMessage": "{cartItems, plural, =1 {1 item} other {# items}} toegevoegd aan <cartLink> je winkelwagen</cartLink>",
         "missingCart": "Winkelmandje niet gevonden. Probeer het later opnieuw.",
         "unknownError": "Onbekende fout. Probeer het later opnieuw."
@@ -464,8 +469,14 @@
             "additionalInformation": "Aanvullende informatie",
             "currentStock": "{quantity, number} op voorraad",
             "backorderQuantity": "{hoeveelheid, aantal} staat in backorder",
+            "maxPurchasableQuantity": "De maximale aankoophoeveelheid is {quantity, number}. Pas aan en probeer het opnieuw.",
             "loadingMoreImages": "Meer afbeeldingen laden",
             "imagesLoaded": "{count, plural, =1 {1 afbeelding geladen} other {# afbeeldingen geladen}}",
+            "playVideo": "Video afspelen",
+            "viewVideo": "Bekijk video",
+            "videosTitle": "Video's",
+            "hideVideos": "Video's verbergen",
+            "showVideos": "Video's weergeven",
             "Submit": {
                 "addToCart": "Toevoegen aan winkelmandje",
                 "outOfStock": "Niet op voorraad",
@@ -559,6 +570,9 @@
         "search": "Zoeken"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+ nog {count, plural, =1 {# aanbieding} other {# aanbiedingen}}"
+        },
         "Header": {
             "home": "Home",
             "toggleNavigation": "Navigatie in- of uitschakelen",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "De oorspronkelijke prijs was {price}.",
             "currentPrice": "De huidige prijs is {price}.",
-            "range": "Prijs van {minValue} tot {maxValue}."
+            "range": "Prijs van {minValue} tot {maxValue}.",
+            "includingTax": "(Incl. btw)",
+            "excludingTax": "(Excl. btw)",
+            "includingTaxFull": "Inclusief btw",
+            "excludingTaxFull": "Exclusief btw"
         }
     },
     "GiftCertificates": {

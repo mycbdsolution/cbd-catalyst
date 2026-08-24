@@ -144,7 +144,8 @@
             "Empty": {
                 "title": "Lo sentimos, no hay resultados para \"{term}\".",
                 "subtitle": "Intenta con otra búsqueda."
-            }
+            },
+            "semanticSearchPlaceholder": "Describe lo que buscas"
         },
         "FacetedSearch": {
             "filters": "Filtros",
@@ -379,6 +380,7 @@
             "subTotal": "Subtotal",
             "discounts": "Descuentos",
             "tax": "Impuesto",
+            "totalIncludesTax": "Incluye {tax} impuestos",
             "total": "Total",
             "CouponCode": {
                 "apply": "Aplicar",
@@ -389,6 +391,7 @@
             },
             "Shipping": {
                 "shipping": "Envío",
+                "shippingExcludingTax": "Envío (sin Impuestos)",
                 "add": "Añadir",
                 "change": "Cambiar",
                 "cancel": "Cancelar",
@@ -444,6 +447,8 @@
         "otherDetails": "Otros detalles",
         "noOtherDetails": "No hay más detalles.",
         "viewOptions": "Ver opciones",
+        "showMore": "Mostrar más",
+        "showLess": "Mostrar menos",
         "successMessage": "{cartItems, plural, =1 {1 Item} other {# Items}} añadidos <cartLink> al carrito</cartLink>",
         "missingCart": "No se ha encontrado el carrito. Vuelva a intentarlo más tarde.",
         "unknownError": "Error desconocido. Vuelva a intentarlo más tarde."
@@ -464,8 +469,14 @@
             "additionalInformation": "Información adicional",
             "currentStock": "{cantidad, número} en existencias",
             "backorderQuantity": "{cantidad, número} en pedidos pendientes",
+            "maxPurchasableQuantity": "La cantidad máxima disponible para tu compra es {quantity, number}. Ajusta y vuelve a intentarlo.",
             "loadingMoreImages": "Cargando más imágenes",
             "imagesLoaded": "{count, plural, =1 {1 imagen más cargada} other {# imágenes más cargadas}}",
+            "playVideo": "Ver vídeo",
+            "viewVideo": "Ver vídeo",
+            "videosTitle": "Vídeos",
+            "hideVideos": "Ocultar vídeos",
+            "showVideos": "Mostrar vídeos",
             "Submit": {
                 "addToCart": "Añadir al carrito",
                 "outOfStock": "Sin existencias",
@@ -559,6 +570,9 @@
         "search": "Buscar"
     },
     "Components": {
+        "ProductCard": {
+            "moreOffers": "+{count, plural, =1 {# oferta más} other {# más ofertas}}"
+        },
         "Header": {
             "home": "Inicio",
             "toggleNavigation": "Alternar navegación",
@@ -646,7 +660,11 @@
         "Price": {
             "originalPrice": "El precio original era {price}.",
             "currentPrice": "El precio actual es {price}.",
-            "range": "Precios entre {minValue} y {maxValue}."
+            "range": "Precios entre {minValue} y {maxValue}.",
+            "includingTax": "(con impuestos)",
+            "excludingTax": "(Sin Impuesto)",
+            "includingTaxFull": "Con impuestos",
+            "excludingTaxFull": "Excluye impuestos"
         }
     },
     "GiftCertificates": {
