@@ -79,7 +79,7 @@ export function BlogPostCard({ blogPost, className }: Props) {
                   <div className="mt-6 flex border-t border-gray-900/5 pt-6 dark:border-white/10">
                     <div className="relative flex items-center gap-x-4">
                    
-                      <div className="text-sm/6">
+                      <div className="text-sm/6 hidden">
                            <Link href={href} className="relative z-10 rounded-full bg-gray-50 px-3 py-1.5 font-medium text-gray-600 hover:bg-gray-100 dark:bg-gray-800/60 dark:text-gray-300 dark:hover:bg-gray-800">
                 category here
                 </Link>

@@ -13,6 +13,7 @@ import {
   Search,
   SearchIcon,
   ShoppingBag,
+  ShoppingCart,
   CircleUserRound,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -349,12 +350,11 @@ export const Navigation = forwardRef(function Navigation<S extends SearchResult>
             <MobileMenuButton
               aria-label={mobileMenuTriggerLabel}
               className="mr-1 @4xl:hidden"
-              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
               open={isMobileMenuOpen}
             />
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content className="max-h-[calc(var(--radix-popover-content-available-height)-8px)] w-[var(--radix-popper-anchor-width)] @container data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
+            <Popover.Content className="z-50 max-h-[calc(var(--radix-popover-content-available-height)-8px)] w-[var(--radix-popper-anchor-width)] @container data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95">
               <div className="max-h-[inherit] divide-y divide-[var(--nav-mobile-divider,hsl(var(--contrast-100)))] overflow-y-auto bg-[var(--nav-mobile-background,hsl(var(--background)))]">
                 <Stream
                   fallback={
@@ -595,7 +595,7 @@ export const Navigation = forwardRef(function Navigation<S extends SearchResult>
             <CircleUserRound size={25} strokeWidth={1} />
           </Link>
           <Link aria-label={cartLabel} className={navButtonClassName} href={cartHref}>
-            <ShoppingBag size={25} strokeWidth={1} />
+            <ShoppingCart size={25} strokeWidth={1} />
             <Stream
               fallback={
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 animate-pulse items-center justify-center rounded-full bg-contrast-100 text-xs text-background" />

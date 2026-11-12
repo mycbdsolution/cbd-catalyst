@@ -5,6 +5,8 @@ import { ButtonLink } from '@/vibes/soul/primitives/button-link';
 import { Breadcrumb, Breadcrumbs, BreadcrumbsSkeleton } from '@/vibes/soul/sections/breadcrumbs';
 import { Image } from '~/components/image';
 
+import { SharingLinks } from './sharing-links';
+
 interface Tag {
   label: string;
   link: {
@@ -25,6 +27,12 @@ export interface BlogPostContentBlogPost {
   tags?: Tag[];
   content: string;
   image?: Image;
+  path: string;
+  sharingLabels: {
+    email: string;
+    print: string;
+    share: string;
+  };
 }
 
 interface Props {
@@ -43,42 +51,36 @@ export function BlogPostContent({
       <div className="mx-auto max-w-screen-2xl px-4 py-10 @xl:px-6 @xl:py-14 @4xl:px-8 @4xl:py-20">
         <Stream fallback={<BlogPostContentSkeleton />} value={streamableBlogPost}>
           {(blogPost) => {
-            const { title, author, date, tags, content, image } = blogPost;
+            const { title, author, date, tags, content, image, path, sharingLabels } = blogPost;
 
             return (
               <>
                 <header className="mx-auto w-full max-w-4xl pb-8 @2xl:pb-6 @4xl:pb-8">
+                  {breadcrumbs && (
+                    <div className="flex justify-center">
+                      <Breadcrumbs breadcrumbs={breadcrumbs} />
+                    </div>
+                  )}
 
-
-
-                   {breadcrumbs && (
-          <div className="flex justify-center">
-            <Breadcrumbs breadcrumbs={breadcrumbs} />
-          </div>
-        )}
-
-              
-
-                     {image?.src != null && image.src !== '' && (
-                  <Image
-                    alt={image.alt}
-                    className="mt-8 aspect-video w-full rounded-2xl bg-contrast-100 object-cover @2xl:mb-12 @4xl:mb-16"
-                    height={780}
-                    src={image.src}
-                    width={1280}
-                  />
-                )}
+                  {image?.src != null && image.src !== '' && (
+                    <Image
+                      alt={image.alt}
+                      className="mt-8 aspect-video w-full rounded-2xl bg-contrast-100 object-cover @2xl:mb-12 @4xl:mb-16"
+                      height={780}
+                      src={image.src}
+                      width={1280}
+                    />
+                  )}
 
                   <h1 className="mb-4 mt-8 text-4xl font-bold leading-none tracking-tighter @xl:text-5xl @4xl:text-6xl">
                     {title}
                   </h1>
                   <p className="text-gray-400">
-                {new Date(date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
-                    {' '}
+                    {new Date(date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}{' '}
                     {Boolean(author) && (
                       <>
                         <span className="px-1">•</span> {author}
@@ -86,37 +88,34 @@ export function BlogPostContent({
                     )}
                   </p>
 
-                     <div className="flex mt-8 mb-8 p-4 border-t border-b">
-                  social sharing here
-                  </div>
-                </header>
-
-               
-
-             
-
-                <article
-                  className="@-xl:[&_h2]:text-4xl prose mx-auto w-full max-w-4xl space-y-4 [&_h2]:font-heading [&_h2]:text-3xl [&_h2]:font-normal [&_h2]:leading-none [&_img]:mx-auto [&_img]:max-h-[600px] [&_img]:w-fit [&_img]:rounded-2xl [&_img]:object-cover"
-                  dangerouslySetInnerHTML={{ __html: content }}
-                />
-          <div className="mx-auto w-full max-w-4xl pb-8 @2xl:pb-6 @4xl:pb-8">
                   {(tags?.length ?? 0) > 0 && (
                     <div className="-ml-1 mt-4 flex flex-wrap gap-1.5 @xl:mt-6">
                       {tags?.map((tag, index) => (
                         <ButtonLink
+                          className="bg-gray-100 text-gray-500"
                           href={tag.link.href}
                           key={index}
                           size="small"
                           variant="ghost"
-                          className='bg-gray-100 text-gray-500'
                         >
                           {tag.label}
                         </ButtonLink>
                       ))}
                     </div>
                   )}
-                  </div>
+                  <SharingLinks
+                    emailLabel={sharingLabels.email}
+                    path={path}
+                    printLabel={sharingLabels.print}
+                    shareLabel={sharingLabels.share}
+                    title={title}
+                  />
+                </header>
 
+                <article
+                  className="@-xl:[&_h2]:text-4xl prose mx-auto w-full max-w-4xl space-y-4 [&_h2]:font-heading [&_h2]:text-3xl [&_h2]:font-normal [&_h2]:leading-none [&_img]:mx-auto [&_img]:max-h-[600px] [&_img]:w-fit [&_img]:rounded-2xl [&_img]:object-cover"
+                  dangerouslySetInnerHTML={{ __html: content }}
+                />
               </>
             );
           }}

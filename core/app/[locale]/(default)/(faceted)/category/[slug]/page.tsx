@@ -286,7 +286,6 @@ export default async function Category(props: Props) {
           { value: 'newest', label: t('SortBy.newestItems') },
           { value: 'best_selling', label: t('SortBy.bestSellingItems') },
           { value: 'a_to_z', label: t('SortBy.aToZ') },
-          { value: 'z_to_a', label: t('SortBy.zToA') },
           { value: 'best_reviewed', label: t('SortBy.byReview') },
           { value: 'lowest_price', label: t('SortBy.priceAscending') },
           { value: 'highest_price', label: t('SortBy.priceDescending') },

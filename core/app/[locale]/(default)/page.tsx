@@ -11,6 +11,8 @@ import { getPreferredCurrencyCode } from '~/lib/currency';
 import { getMetadataAlternates } from '~/lib/seo/canonical';
 
 import { Slideshow } from './_components/slideshow';
+
+
 import { getPageData } from './page-data';
 
 interface Props {
@@ -87,6 +89,7 @@ export default async function Home({ params }: Props) {
   return (
     <>
       <Slideshow />
+
 
       <FeaturedProductList
         cta={{ label: t('FeaturedProducts.cta'), href: '/shop' }}

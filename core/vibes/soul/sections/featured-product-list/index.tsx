@@ -66,7 +66,7 @@ export function FeaturedProductList({
        
 
       <div className="group/product-list flex-1">
-        <ProductList className='@3xl:grid-cols-4'
+        <ProductList className='grid-cols-2 @3xl:grid-cols-4'
           emptyStateSubtitle={emptyStateSubtitle}
           emptyStateTitle={emptyStateTitle}
           placeholderCount={placeholderCount}

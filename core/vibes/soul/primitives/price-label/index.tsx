@@ -54,12 +54,12 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
   const t = useTranslations('Components.Price');
 
   const baseColorClass = {
-    light: 'text-[var(--price-light-text,hsl(var(--foreground)))]',
+    light: 'text-gray-400',
     dark: 'text-[var(--price-dark-text,hsl(var(--background)))]',
   }[colorScheme];
 
   if (typeof price === 'string') {
-    return <span className={clsx('block font-semibold', baseColorClass, className)}>{price}</span>;
+    return <span className={clsx('block font-normal', baseColorClass, className)}>{price}</span>;
   }
 
   const mode: TaxMode = price.mode ?? 'EX';
@@ -71,7 +71,7 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
     const excludingTaxTooltip = t('excludingTaxFull');
 
     return (
-      <span className={clsx('block font-semibold', baseColorClass, className)}>
+      <span className={clsx('block font-normal text-sm', baseColorClass, className)}>
         <span className="block">
           <PriceLine colorScheme={colorScheme} price={price} t={t} tax="inc" />{' '}
           <abbr className="cursor-help font-normal opacity-60" title={includingTaxTooltip}>
@@ -91,7 +91,7 @@ export function PriceLabel({ className, colorScheme = 'light', price }: Props) {
   const tax: 'inc' | 'ex' = mode === 'EX' ? 'ex' : 'inc';
 
   return (
-    <span className={clsx('block font-semibold', baseColorClass, className)}>
+    <span className={clsx('block font-normal text-sm', baseColorClass, className)}>
       <PriceLine colorScheme={colorScheme} price={price} t={t} tax={tax} />
     </span>
   );

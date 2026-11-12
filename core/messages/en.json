@@ -21,7 +21,7 @@
       }
     },
     "FeaturedProducts": {
-      "title": "Featured collection",
+      "title": "New & Featured",
       "description": "Explore our top picks in this featured collection. Find the perfect gift or treat yourself!",
       "cta": "View more",
       "emptyStateTitle": "No products found",
@@ -176,8 +176,8 @@
       "aToZ": "A to Z",
       "zToA": "Z to A",
       "byReview": "By review",
-      "priceAscending": "Price: ascending",
-      "priceDescending": "Price: descending",
+      "priceAscending": "Price: Low to High",
+      "priceDescending": "Price: High to Low",
       "relevance": "Relevance"
     },
     "Compare": {

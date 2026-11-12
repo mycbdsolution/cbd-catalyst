@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { Loader2 } from 'lucide-react';
-import { ComponentPropsWithoutRef } from 'react';
+import { ComponentPropsWithoutRef, forwardRef } from 'react';
 
 export interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
   variant?: 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'danger';
@@ -42,17 +42,20 @@ export interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
  * }
  * ```
  */
-export function Button({
-  variant = 'primary',
-  size = 'large',
-  shape = 'pill',
-  loading = false,
-  type = 'button',
-  disabled = false,
-  className,
-  children,
-  ...props
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = 'primary',
+    size = 'large',
+    shape = 'pill',
+    loading = false,
+    type = 'button',
+    disabled = false,
+    className,
+    children,
+    ...props
+  },
+  ref,
+) {
   return (
     <button
       {...props}
@@ -82,6 +85,7 @@ export function Button({
         className,
       )}
       disabled={disabled}
+      ref={ref}
       type={type}
     >
       <span
@@ -128,4 +132,4 @@ export function Button({
       </span>
     </button>
   );
-}
+});

@@ -84,7 +84,7 @@ export function ProductsListSection({
             }
           </Stream>
           <div className="flex flex-wrap items-center justify-between gap-4 pb-8 pt-6 text-foreground">
-            <h1 className="flex items-center gap-2 font-heading text-3xl font-medium leading-none @lg:text-4xl @2xl:text-5xl">
+            <h1 className="flex items-center gap-2 font-heading text-3xl font-medium leading-none @lg:text-4xl @2xl:text-5xl hidden">
               <Suspense
                 fallback={
                   <span className="inline-flex h-[1lh] w-[6ch] animate-pulse rounded-lg bg-contrast-100" />
@@ -97,32 +97,14 @@ export function ProductsListSection({
                   <span className="inline-flex h-[1lh] w-[2ch] animate-pulse rounded-lg bg-contrast-100" />
                 }
               >
-                <span className="text-contrast-300">{totalCount}</span>
+                <span className="text-contrast-300 hidden">{totalCount}</span>
               </Suspense>
             </h1>
-            <div className="flex gap-2">
-              <Stream
-                fallback={<SortingSkeleton />}
-                value={Streamable.all([
-                  streamableSortLabel,
-                  streamableSortOptions,
-                  streamableSortPlaceholder,
-                ])}
-              >
-                {([label, options, placeholder]) => (
-                  <Sorting
-                    defaultValue={sortDefaultValue}
-                    label={label}
-                    options={options}
-                    paramName={sortParamName}
-                    placeholder={placeholder}
-                  />
-                )}
-              </Stream>
-              <div className="block @3xl:hidden">
+            <div className="flex justify-between gap-2 w-full">
+                   <div className="filters-button block @3xl:hiddenn">
                 <SidePanel.Root>
                   <SidePanel.Trigger asChild>
-                    <Button size="medium" variant="secondary">
+                    <Button size="medium" variant="tertiary" className="bg-transsparent">
                       {filterLabel}
                       <span className="hidden @xl:block">
                         <Sliders size={20} />
@@ -143,11 +125,30 @@ export function ProductsListSection({
                   </Stream>
                 </SidePanel.Root>
               </div>
+              <Stream
+                fallback={<SortingSkeleton />}
+                value={Streamable.all([
+                  streamableSortLabel,
+                  streamableSortOptions,
+                  streamableSortPlaceholder,
+                ])}
+              >
+                {([label, options, placeholder]) => (
+                  <Sorting
+                    defaultValue={sortDefaultValue}
+                    label={label}
+                    options={options}
+                    paramName={sortParamName}
+                    placeholder={placeholder}
+                  />
+                )}
+              </Stream>
+         
             </div>
           </div>
         </div>
         <div className="flex items-stretch gap-8 @4xl:gap-10">
-          <aside className="hidden w-52 @3xl:block @4xl:w-60">
+          <aside className="hidden w-52 @3xl:hidden @4xl:w-60">
             <Stream value={streamableFiltersPanelTitle}>
               {(filtersPanelTitle) => <h2 className="sr-only">{filtersPanelTitle}</h2>}
             </Stream>

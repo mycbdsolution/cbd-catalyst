@@ -56,6 +56,7 @@ export default async (): Promise<NextConfig> => {
   const settings = await writeSettingsToBuildConfig();
 
   let nextConfig: NextConfig = {
+    allowedDevOrigins: ['192.168.1.170'],
     reactStrictMode: true,
     experimental: {
       optimizePackageImports: ['@icons-pack/react-simple-icons'],

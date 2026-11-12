@@ -99,7 +99,7 @@ export function ProductList({
             maxItems={maxItems}
           >
             <div className="w-full @container">
-                <div className={clsx('mx-auto grid grid-cols-1 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-10 @2xl:gap-y-12', className)}>
+                <div className={clsx('mx-auto grid grid-cols-2 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-12 @2xl:gap-y-8', className)}>
   
                 {products.map((product) => (
                   <ProductCard
@@ -140,7 +140,7 @@ export function ProductListSkeleton({
       className={clsx('group-has-data-pending/product-list:animate-pulse', className)}
       pending
     >
-      <div className="mx-auto grid grid-cols-1 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-5 @2xl:gap-y-8 @5xl:grid-cols-4 @7xl:grid-cols-5">
+      <div className="mx-auto grid grid-cols-1 gap-x-4 gap-y-6 @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-5 @2xl:gap-y-8">
         {Array.from({ length: placeholderCount }).map((_, index) => (
           <ProductCardSkeleton key={index} />
         ))}
@@ -162,7 +162,7 @@ export function ProductListEmptyState({
     <Skeleton.Root className={clsx('relative', className)}>
       <div
         className={clsx(
-          'mx-auto grid grid-cols-1 gap-x-4 gap-y-6 [mask-image:linear-gradient(to_bottom,_black_0%,_transparent_90%)] @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-5 @2xl:gap-y-8 @5xl:grid-cols-4 @7xl:grid-cols-5',
+          'mx-auto grid grid-cols-1 gap-x-4 gap-y-5 [mask-image:linear-gradient(to_bottom,_black_0%,_transparent_90%)] @sm:grid-cols-2 @2xl:grid-cols-3 @2xl:gap-x-5 @2xl:gap-y-8',
         )}
       >
         {Array.from({ length: placeholderCount }).map((_, index) => (

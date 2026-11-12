@@ -130,7 +130,7 @@ export interface CartEmptyState {
 
 export function CartEmptyState({ title, subtitle, cta }: CartEmptyState) {
   return (
-    <SectionLayout className="text-center font-[family-name:var(--cart-font-family,var(--font-family-body))]">
+    <SectionLayout className="text-center py-32 font-[family-name:var(--cart-font-family,var(--font-family-body))]">
       <h1 className="mb-3 text-center font-[family-name:var(--cart-title-font-family,var(--font-family-heading))] text-3xl leading-none text-[var(--cart-title,hsl(var(--foreground)))] @xl:text-4xl">
         {title}
       </h1>

@@ -45,6 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 async function getBlogPost(props: Props): Promise<BlogPostContentBlogPost> {
   const format = await getFormatter();
+  const t = await getTranslations('Blog.SharingLinks');
 
   const { blogId } = await props.params;
 
@@ -62,6 +63,12 @@ async function getBlogPost(props: Props): Promise<BlogPostContentBlogPost> {
     title: blogPost.name,
     content: rewriteWysiwygContentUrls(blogPost.htmlBody),
     date: format.dateTime(new Date(blogPost.publishedDate.utc)),
+    path: blogPost.path,
+    sharingLabels: {
+      email: t('email'),
+      print: t('print'),
+      share: t('share'),
+    },
     image: blogPost.thumbnailImage
       ? { alt: blogPost.thumbnailImage.altText, src: blogPost.thumbnailImage.url }
       : undefined,
