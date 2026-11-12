@@ -131,14 +131,14 @@ export const handlers = [
           controller.enqueue(
             encoder.encode(
               // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `data: {"deployment_status":"in_progress","deployment_uuid":"${params.deploymentUuid}","event":{"step":"processing","progress":75},"deployment_hostnames":[]}`,
+              `data: {"deployment_status":"in_progress","deployment_uuid":"${params.deploymentUuid}","event":{"step":"processing","progress":75},"deployment_hostnames":[]}\n\n`,
             ),
           );
           setTimeout(() => {
             controller.enqueue(
               encoder.encode(
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                `data: {"deployment_status":"in_progress","deployment_uuid":"${params.deploymentUuid}","event":{"step":"finalizing","progress":99},"deployment_hostnames":[]}`,
+                `data: {"deployment_status":"in_progress","deployment_uuid":"${params.deploymentUuid}","event":{"step":"finalizing","progress":99},"deployment_hostnames":[]}\n\n`,
               ),
             );
           }, 10);
@@ -146,7 +146,7 @@ export const handlers = [
             controller.enqueue(
               encoder.encode(
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                `data: {"deployment_status":"completed","deployment_uuid":"${params.deploymentUuid}","event":null,"deployment_hostnames":["example.com"]}`,
+                `data: {"deployment_status":"completed","deployment_uuid":"${params.deploymentUuid}","event":null,"deployment_hostnames":["example.com"]}\n\n`,
               ),
             );
             controller.close();
@@ -308,5 +308,63 @@ export const handlers = [
     HttpResponse.json({
       data: { id: 1, url: 'https://example.com', channel_id: 1 },
     }),
+  ),
+
+  // Handler for getChannelSite. Mirrors a real response: null `ssl_status`, and
+  // a checkout URL under the storefront domain.
+  http.get('https://:apiHost/stores/:storeHash/v3/channels/:channelId/site', () =>
+    HttpResponse.json({
+      data: {
+        id: 1,
+        url: 'https://example.com',
+        channel_id: 1,
+        ssl_status: null,
+        is_checkout_url_customized: true,
+        urls: [
+          { url: 'https://example.com', type: 'primary' },
+          { url: 'https://store-abc-1.mybigcommerce.com', type: 'canonical' },
+          { url: 'https://checkout.example.com', type: 'checkout' },
+        ],
+      },
+    }),
+  ),
+
+  // Handlers for updateChannelCheckoutUrl / deleteChannelCheckoutUrl. The PUT
+  // echoes back the full site, as the real API does.
+  http.put(
+    'https://:apiHost/stores/:storeHash/v3/channels/:channelId/site/checkout-url',
+    async ({ request }) => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const body = (await request.json()) as { url: string };
+
+      return HttpResponse.json({
+        data: {
+          id: 1,
+          url: 'https://example.com',
+          channel_id: 1,
+          ssl_status: null,
+          is_checkout_url_customized: true,
+          urls: [
+            { url: 'https://example.com', type: 'primary' },
+            { url: body.url, type: 'checkout' },
+          ],
+        },
+      });
+    },
+  ),
+
+  http.delete(
+    'https://:apiHost/stores/:storeHash/v3/channels/:channelId/site/checkout-url',
+    () => new HttpResponse(null, { status: 204 }),
+  ),
+
+  // Default handler for the checkout certificate probe — the hostname serves,
+  // so nothing waits. Tests that exercise the wait override per hostname.
+  http.head('https://*/', () => new HttpResponse(null, { status: 200 })),
+
+  // Default handler for the npm registry — 404 so the stale-CLI check stays
+  // silent by default. Tests that assert on it override with a version payload.
+  http.get('https://registry.npmjs.org/:scope/:name/latest', () =>
+    HttpResponse.json({ error: 'Not found' }, { status: 404 }),
   ),
 ];

@@ -84,12 +84,29 @@ class KV<Adapter extends KvAdapter> implements KvAdapter {
   }
 }
 
-async function createKVAdapter() {
+let warnedMemoryFallback = false;
+
+// Exported for tests: the adapter chosen here depends on ambient runtime
+// state (env vars, the Cloudflare context global) that can't be observed
+// through the memoized `kv` singleton below.
+export async function createKVAdapter() {
   // Prioritize Runtime Cache for Vercel environments
   if (process.env.VERCEL === '1') {
     const { RuntimeCacheAdapter } = await import('./adapters/vercel-runtime-cache');
 
     return new RuntimeCacheAdapter();
+  }
+
+  // On BigCommerce Native Hosting (Cloudflare Workers for Platforms) each
+  // project gets its own KV namespace bound as CATALYST_ROUTES_KV. Without
+  // this branch we'd fall through to MemoryKvAdapter, which isn't shared
+  // across edge invocations. `getRoutesKvNamespace` returns null on every
+  // other runtime, so this is a no-op off Cloudflare.
+  const { CloudflareKvAdapter, getRoutesKvNamespace } = await import('./adapters/cloudflare-kv');
+  const routesKvNamespace = getRoutesKvNamespace();
+
+  if (routesKvNamespace) {
+    return new CloudflareKvAdapter(routesKvNamespace);
   }
 
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -103,6 +120,15 @@ async function createKVAdapter() {
   // would empty both layers together and leave `with-routes` with no cached
   // value, sending every request past the window into its blocking origin
   // fetch rather than its background refresh.
+  if (process.env.NODE_ENV === 'production' && !warnedMemoryFallback) {
+    warnedMemoryFallback = true;
+
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[BigCommerce] KV: no shared store configured, so route, store status and locale lookups are cached per instance and repeat on every cold start. Deploy on Vercel (Runtime Cache), bind a Cloudflare KV namespace as CATALYST_ROUTES_KV, or set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.',
+    );
+  }
+
   return new MemoryKvAdapter();
 }
 

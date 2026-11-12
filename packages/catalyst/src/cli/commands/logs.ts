@@ -7,6 +7,7 @@ import { httpError } from '../lib/http-errors';
 import { consola } from '../lib/logger';
 import {
   formatLogEntry,
+  isRequestLogEntry,
   LOG_LEVELS,
   queryLogs,
   QueryLogsResult,
@@ -28,6 +29,8 @@ type LogFormat = 'json' | 'pretty' | 'default' | 'short' | 'request';
 
 const DEFAULT_CONNECTION_TTL_MS = 1 * 60 * 1000; // 1 minute
 const MAX_RETRIES = 5;
+// Covers the tail worker's 100-event replay plus live events seen during a handoff.
+const MAX_SEEN_EVENT_IDS = 10_000;
 
 const isFatalStatusCode = (status: number) => status >= 400 && status < 500;
 
@@ -155,30 +158,47 @@ const processLogEvent = (event: string, format: LogFormat) => {
   }
 };
 
-type TimeoutRaceResult<T> = { kind: 'value'; value: T } | { kind: 'timeout' };
+const EventIdSchema = z.object({ uuid: z.string().min(1) });
 
-// Races a promise against a timer so a hung `reader.read()` doesn't block the
-// read pump. Without this, the connection TTL check never runs when the API
-// proxy half-closes the socket — bytes stop arriving but no FIN/error
-// surfaces, so the read promise stays pending forever.
-const raceWithTimeout = async <T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<TimeoutRaceResult<T>> => {
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+const parseEventId = (event: string) => {
+  try {
+    const result = EventIdSchema.safeParse(JSON.parse(event));
 
-  const timeoutPromise = new Promise<TimeoutRaceResult<T>>((resolve) => {
-    timeoutHandle = setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
+    return result.success ? result.data.uuid : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+// Rotations overlap and the tail worker replays on connect, so drop repeated IDs.
+const createEventDeduper = () => {
+  const seen = new Set<string>();
+
+  return (event: string) => {
+    const id = parseEventId(event);
+
+    if (id === undefined) return true;
+    if (seen.has(id)) return false;
+
+    seen.add(id);
+
+    if (seen.size > MAX_SEEN_EVENT_IDS) {
+      const oldest = seen.values().next().value;
+
+      if (oldest !== undefined) seen.delete(oldest);
+    }
+
+    return true;
+  };
+};
+
+const createTimer = (ms: number) => {
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<void>((resolve) => {
+    handle = setTimeout(resolve, ms);
   });
 
-  try {
-    return await Promise.race([
-      promise.then((value): TimeoutRaceResult<T> => ({ kind: 'value', value })),
-      timeoutPromise,
-    ]);
-  } finally {
-    if (timeoutHandle) clearTimeout(timeoutHandle);
-  }
+  return { promise, clear: () => clearTimeout(handle) };
 };
 
 const openLogStream = async (
@@ -220,66 +240,74 @@ const openLogStream = async (
   return reader;
 };
 
-// Reasons the read pump stops on its own (vs. throwing). The outer reconnect
-// loop maps each to a user-facing message — or silence — and opens a fresh
-// stream.
-type Rotation = 'ttl' | 'idle-timeout' | 'stream-done';
+type StreamReader = ReadableStreamDefaultReader<Uint8Array>;
+type ReadResult = ReadableStreamReadResult<Uint8Array>;
 
-const pumpUntilRotation = async (
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  format: LogFormat,
-  connectionTtlMs: number,
-): Promise<Rotation> => {
+const STOPPED = Symbol('stopped');
+
+// Reads SSE events until `stop` settles or the stream ends. Racing `stop` keeps a
+// half-closed proxy socket from hanging `reader.read()`; a pending read carries over.
+const createEventPump = (reader: StreamReader, onEvent: (event: string) => void) => {
   const decoder = new TextDecoder();
-  const connectTime = Date.now();
   let buffer = '';
+  let pendingRead: Promise<ReadResult> | undefined;
   let receivedData = false;
 
-  // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
-  while (true) {
-    const remainingTtlMs = connectionTtlMs - (Date.now() - connectTime);
+  const pumpUntil = async (stop: Promise<unknown>): Promise<'stopped' | 'stream-done'> => {
+    // One reaction on `stop`; racing it per read would retain every chunk until it settles.
+    const stopState: { stopped: boolean; wake?: () => void } = { stopped: false };
+    const onStop = () => {
+      stopState.stopped = true;
+      stopState.wake?.();
+    };
+    const nextRead = (read: Promise<ReadResult>) =>
+      new Promise<ReadResult | typeof STOPPED>((resolve, reject) => {
+        stopState.wake = () => resolve(STOPPED);
+        read.then(resolve, reject);
+      });
 
-    if (remainingTtlMs <= 0) {
-      void reader.cancel();
+    void stop.then(onStop, onStop);
 
-      return 'ttl';
+    // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      if (stopState.stopped) return 'stopped';
+
+      pendingRead ??= reader.read();
+
+      // eslint-disable-next-line no-await-in-loop
+      const result = await nextRead(pendingRead);
+
+      stopState.wake = undefined;
+
+      if (result === STOPPED) return 'stopped';
+
+      pendingRead = undefined;
+
+      const { value, done } = result;
+
+      if (value) {
+        receivedData = true;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+
+        // Last element is either empty (complete event) or a partial chunk to carry over
+        buffer = parts.pop() ?? '';
+
+        parts
+          .map((raw) => parseSSEEvent(raw))
+          .filter((event): event is string => event !== null)
+          .forEach(onEvent);
+      }
+
+      if (done) return 'stream-done';
     }
+  };
 
-    // eslint-disable-next-line no-await-in-loop
-    const readResult = await raceWithTimeout(reader.read(), remainingTtlMs);
-
-    if (readResult.kind === 'timeout') {
-      void reader.cancel();
-
-      // No data for the whole window: proxy likely half-closed the socket.
-      // If data flowed earlier, treat it as a normal TTL boundary instead.
-      return receivedData ? 'ttl' : 'idle-timeout';
-    }
-
-    const { value, done: streamDone } = readResult.value;
-
-    if (value) {
-      receivedData = true;
-      buffer += decoder.decode(value, { stream: true });
-
-      const parts = buffer.split('\n\n');
-
-      // Last element is either empty (complete event) or a partial chunk to carry over
-      buffer = parts.pop() ?? '';
-
-      parts
-        .map((raw) => parseSSEEvent(raw))
-        .filter((event): event is string => event !== null)
-        .forEach((event) => processLogEvent(event, format));
-    }
-
-    if (streamDone) {
-      void reader.cancel();
-
-      return 'stream-done';
-    }
-  }
+  return { pumpUntil, receivedData: () => receivedData };
 };
+
+type EventPump = ReturnType<typeof createEventPump>;
 
 export const tailLogs = async (
   projectUuid: string,
@@ -291,44 +319,97 @@ export const tailLogs = async (
 ) => {
   consola.info('Tailing logs...');
 
+  const isNewEvent = createEventDeduper();
+  const onEvent = (event: string) => {
+    if (isNewEvent(event)) processLogEvent(event, format);
+  };
+  const open = () => openLogStream(projectUuid, storeHash, accessToken, apiHost);
+
   let retries = 0;
+  let nextStream: Promise<StreamReader> | undefined;
+
+  // Rethrows fatal errors and counts the rest against the retry budget.
+  const recordStreamError = (error: unknown) => {
+    if (error instanceof StreamError && error.fatal) {
+      throw error;
+    }
+
+    const isServerDisconnect = error instanceof TypeError && error.message === 'terminated';
+
+    if (isServerDisconnect) {
+      consola.warn('Log stream closed by server, reconnecting...');
+
+      return;
+    }
+
+    retries += 1;
+
+    if (retries >= MAX_RETRIES) {
+      throw new StreamError(`Failed to connect to log stream after ${MAX_RETRIES} retries.`, true);
+    }
+
+    consola.warn(
+      `Log stream disconnected, reconnecting (attempt ${retries}/${MAX_RETRIES})...`,
+      error,
+    );
+  };
+
+  // Opens the next stream while still reading the current one; failed opens are retried.
+  // If the current stream ends first, the pending open becomes the reconnect.
+  const handOff = async (pump: EventPump): Promise<{ next: Promise<StreamReader> }> => {
+    // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const next = open();
+
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await pump.pumpUntil(next);
+
+        if (result === 'stream-done') return { next };
+      } catch {
+        return { next };
+      }
+
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await next;
+
+        return { next };
+      } catch (error) {
+        recordStreamError(error);
+      }
+    }
+  };
 
   // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
   while (true) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const reader = await openLogStream(projectUuid, storeHash, accessToken, apiHost);
+    let reader: StreamReader | undefined;
 
+    try {
+      const pendingStream = nextStream;
+
+      nextStream = undefined;
+      // eslint-disable-next-line no-await-in-loop
+      reader = await (pendingStream ?? open());
       retries = 0;
 
+      const pump = createEventPump(reader, onEvent);
+      const ttl = createTimer(connectionTtlMs);
       // eslint-disable-next-line no-await-in-loop
-      const rotation = await pumpUntilRotation(reader, format, connectionTtlMs);
+      const result = await pump.pumpUntil(ttl.promise).finally(ttl.clear);
 
-      if (rotation === 'idle-timeout') {
-        consola.warn('Log stream idle, reconnecting...');
+      if (result === 'stopped') {
+        // No data: a half-closed socket or a quiet project. Overlap either way.
+        if (!pump.receivedData()) consola.warn('Log stream idle, reconnecting...');
+
+        // eslint-disable-next-line no-await-in-loop
+        ({ next: nextStream } = await handOff(pump));
       }
-      // 'ttl' and 'stream-done' are healthy rotations — reconnect silently.
     } catch (error) {
-      if (error instanceof StreamError && error.fatal) {
-        throw error;
-      }
-
-      const isServerDisconnect = error instanceof TypeError && error.message === 'terminated';
-
-      if (isServerDisconnect) {
-        consola.warn('Log stream closed by server, reconnecting...');
-      } else {
-        retries += 1;
-
-        if (retries >= MAX_RETRIES) {
-          throw new Error(`Failed to connect to log stream after ${MAX_RETRIES} retries.`);
-        }
-
-        consola.warn(
-          `Log stream disconnected, reconnecting (attempt ${retries}/${MAX_RETRIES})...`,
-          error,
-        );
-      }
+      recordStreamError(error);
+    } finally {
+      // Cancelling an errored stream rejects with an error the read loop already handled.
+      reader?.cancel().catch(() => undefined);
     }
   }
 };
@@ -457,6 +538,8 @@ function printPaginationHints(
     ...(options.urlLike ? [`--url-like ${quoteArg(options.urlLike)}`] : []),
     ...(options.levelMin ? [`--level-min ${options.levelMin}`] : []),
     ...(options.limit != null ? [`--limit ${options.limit}`] : []),
+    // The entry_type filter derives from --format (default/short request only
+    // application logs), so echoing --format is enough to reproduce it.
     ...(options.format !== 'default' ? [`--format ${options.format}`] : []),
   ];
   const command = `${invocationPrefix()} logs query ${baseFlags.join(' ')}`;
@@ -486,6 +569,10 @@ a ready-to-run command when more entries are available), or toward newer
 entries with \`--before\`. Cursors are only valid with the same window and
 filters they came from. With \`--format json\`, the pagination cursors are
 emitted as a final \`{"meta": ...}\` line after the entries.
+
+The \`default\` and \`short\` formats show only application log output,
+excluding Cloudflare's auto-generated per-request rows. Use
+\`--format request\` (or \`json\`/\`pretty\`) to include them.
 
 Examples:
   # Last hour of logs
@@ -565,9 +652,14 @@ Examples:
       const projectUuid = resolveProjectUuid(options);
       const { start, end } = resolveTimeWindow(options);
 
+      // default/short show only application output, so ask the API to filter
+      // out Cloudflare's per-request rows (they don't consume the page limit).
+      const hideRequestRows = options.format === 'default' || options.format === 'short';
+
       const result = await queryLogs(projectUuid, storeHash, accessToken, apiHost, {
         start,
         end,
+        entryType: hideRequestRows ? 'log' : undefined,
         method: options.method,
         statusCode: options.statusCode,
         urlLike: options.urlLike,
@@ -612,10 +704,21 @@ Examples:
       // the narrowed value so it survives into the forEach closure.
       const lineFormat = options.format;
 
-      ordered.forEach((entry) => consola.log(formatLogEntry(entry, lineFormat)));
+      // Older API deployments ignore the entry_type param, so also drop
+      // request rows client-side — a no-op against new APIs.
+      const visible = hideRequestRows
+        ? ordered.filter((entry) => !isRequestLogEntry(entry))
+        : ordered;
+      const hiddenCount = ordered.length - visible.length;
+
+      visible.forEach((entry) => consola.log(formatLogEntry(entry, lineFormat)));
+
+      const shownPart = `${visible.length} ${visible.length === 1 ? 'entry' : 'entries'} shown`;
 
       consola.info(
-        `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} shown (oldest first, times in UTC).`,
+        hiddenCount > 0
+          ? `${shownPart}, ${hiddenCount} request ${hiddenCount === 1 ? 'row' : 'rows'} hidden (oldest first, times in UTC). Use --format request to see request rows.`
+          : `${shownPart} (oldest first, times in UTC).`,
       );
 
       printPaginationHints(result.meta?.cursor_pagination, start, end, options);

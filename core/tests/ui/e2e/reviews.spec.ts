@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker';
 
 import { expect, test } from '~/tests/fixtures';
 import { getTranslations } from '~/tests/lib/i18n';
+import { completeRecaptchaIfEnabled } from '~/tests/lib/recaptcha';
 import { TAGS } from '~/tests/tags';
 
 test(
@@ -44,19 +45,11 @@ test(
     await expect(modal.getByLabel(t('nameLabel'))).toBeEnabled();
     await expect(modal.getByLabel(t('emailLabel'))).toBeEnabled();
 
-    // Click reCAPTCHA if enabled (uses test key — no challenge, always passes)
-    const recaptchaFrame = page.frameLocator('iframe[title="reCAPTCHA"]');
-    const recaptchaCheckbox = recaptchaFrame.locator('.recaptcha-checkbox-border');
-
-    if (await recaptchaCheckbox.isVisible()) {
-      await recaptchaCheckbox.click();
-      await recaptchaFrame.locator('.recaptcha-checkbox-checked').waitFor();
-    }
+    await completeRecaptchaIfEnabled(page);
 
     await modal.getByRole('button', { name: t('submit') }).click();
-    await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText(t('successMessage'))).toBeVisible();
+    await expect(page.getByText(t('successMessage'))).toBeVisible({ timeout: 15_000 });
     await expect(modal).toBeHidden();
     await expect(page.getByRole('button', { name: t('button') })).toBeVisible();
   },
@@ -78,8 +71,8 @@ test('Shows validation errors when submitting review form with empty inputs', as
 
   await expect(modal.getByRole('heading', { name: t('title') })).toBeVisible();
 
+  // No networkidle wait from here on: the modal's reCAPTCHA iframes keep making requests.
   await modal.getByRole('button', { name: t('submit') }).click();
-  await page.waitForLoadState('networkidle');
 
   await expect(modal).toBeVisible();
 
@@ -97,7 +90,7 @@ test('Shows validation errors when submitting review form with empty inputs', as
 
   const errorMessages = modal.locator('text=/required|invalid/i');
 
-  await expect(errorMessages.first()).toBeVisible();
+  await expect(errorMessages.first()).toBeVisible({ timeout: 15_000 });
   await expect(errorMessages.nth(1)).toBeVisible();
   await expect(errorMessages.nth(2)).toBeVisible();
   await expect(errorMessages.nth(3)).toBeVisible();
@@ -137,8 +130,7 @@ test('Review submission fails if reCAPTCHA is not completed', async ({ page, cat
   await modal.getByLabel(t('emailLabel')).fill(faker.internet.email());
 
   await modal.getByRole('button', { name: t('submit') }).click();
-  await page.waitForLoadState('networkidle');
 
   await expect(modal).toBeVisible();
-  await expect(page.getByText(t('recaptchaRequired'))).toBeVisible();
+  await expect(page.getByText(t('recaptchaRequired'))).toBeVisible({ timeout: 15_000 });
 });

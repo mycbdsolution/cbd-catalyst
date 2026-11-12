@@ -1,6 +1,20 @@
 import { select } from '@inquirer/prompts';
 
-import { type Channel, fetchAvailableChannels, updateChannelSiteUrl } from './channels';
+import {
+  type Channel,
+  type ChannelSiteDetails,
+  fetchAvailableChannels,
+  findChannelSiteUrl,
+  getChannelSite,
+  updateChannelCheckoutUrl,
+  updateChannelSiteUrl,
+} from './channels';
+import {
+  hostnameOf,
+  isManagedHostingHostname,
+  sharesMainDomain,
+  warnOnCrossDomainCheckout,
+} from './checkout-url';
 import { selectOrCreateInfrastructureProject } from './commerce-hosting';
 import { consola } from './logger';
 import { fetchProjects, type ProjectListItem } from './project';
@@ -22,6 +36,25 @@ export interface ChannelSiteFlowOptions {
   // `catalyst deploy --update-site-url` to default to the freshly-deployed
   // hostname.
   preferHostname?: string;
+  // Warn if checkout is left on another domain. Off when the caller offers a fix next.
+  diagnoseCheckout?: boolean;
+  // Put back a checkout URL the site URL update drops. Off when the caller sets
+  // or removes the checkout URL itself.
+  preserveCheckoutUrl?: boolean;
+}
+
+// The custom checkout URL to restore after moving the site URL to `hostname`:
+// one on the same main domain still works there. A managed-zone `c.` hostname
+// belongs to its old deployment hostname, so it is left for the managed offer.
+function preservableCheckoutUrl(site: ChannelSiteDetails, hostname: string): string | undefined {
+  if (!site.isCheckoutUrlCustomized) return undefined;
+
+  const checkoutUrl = findChannelSiteUrl(site, 'checkout');
+  const checkoutHost = checkoutUrl ? hostnameOf(checkoutUrl) : undefined;
+
+  if (!checkoutUrl || !checkoutHost || isManagedHostingHostname(checkoutHost)) return undefined;
+
+  return sharesMainDomain(checkoutHost, hostname) ? checkoutUrl : undefined;
 }
 
 async function resolveProject(options: ChannelSiteFlowOptions): Promise<ProjectListItem> {
@@ -45,9 +78,17 @@ async function resolveProject(options: ChannelSiteFlowOptions): Promise<ProjectL
   return selectOrCreateInfrastructureProject(api, options.projectUuid);
 }
 
-async function resolveChannel(
-  options: ChannelSiteFlowOptions,
-): Promise<{ id: number; name?: string }> {
+// Exported so `channels info` and `channels update` resolve channels the same
+// way rather than re-deriving the Catalyst-platform filter and its error copy.
+export async function resolveChannel(options: {
+  storeHash: string;
+  accessToken: string;
+  apiHost: string;
+  channelId?: number;
+  // Overrides the picker copy for callers that aren't about to write anything —
+  // `channels info` only reads, so "to update" would misdescribe it.
+  message?: string;
+}): Promise<{ id: number; name?: string }> {
   if (options.channelId !== undefined) {
     return { id: options.channelId };
   }
@@ -74,7 +115,7 @@ async function resolveChannel(
   }
 
   const id = await select({
-    message: 'Select the channel to update.',
+    message: options.message ?? 'Select the channel to update.',
     choices: catalystChannels.map((c: Channel) => ({
       name: c.name,
       value: c.id,
@@ -119,21 +160,103 @@ async function resolveHostname(
   return selected;
 }
 
-export async function runChannelSiteUrlFlow(options: ChannelSiteFlowOptions): Promise<void> {
+export interface ChannelSiteFlowResult {
+  channelId: number;
+  // The hostname the site URL was set to, so a checkout step can pair with it.
+  hostname: string;
+}
+
+export async function runChannelSiteUrlFlow(
+  options: ChannelSiteFlowOptions,
+): Promise<ChannelSiteFlowResult> {
   const project = await resolveProject(options);
   const channel = await resolveChannel(options);
   const hostname = await resolveHostname(project, options);
   const siteUrl = hostname.startsWith('https://') ? hostname : `https://${hostname}`;
+  const channelLabel = channel.name ? `"${channel.name}" (${channel.id})` : String(channel.id);
 
-  await updateChannelSiteUrl(
+  // Skip an unchanged site URL: sites-service deletes the checkout URL on every
+  // site URL update, so re-sending it would drop the `c.` hostname. Best-effort:
+  // if the read fails, write anyway.
+  const current = await getChannelSite(
     channel.id,
-    siteUrl,
     options.storeHash,
     options.accessToken,
     options.apiHost,
-  );
+  ).catch(() => undefined);
 
-  const channelLabel = channel.name ? `"${channel.name}" (${channel.id})` : String(channel.id);
+  if (
+    current &&
+    (findChannelSiteUrl(current, 'primary') ?? current.url).replace(/\/$/, '') === siteUrl
+  ) {
+    consola.info(`Channel ${channelLabel} site URL is already ${siteUrl}.`);
+  } else {
+    await updateChannelSiteUrl(
+      channel.id,
+      siteUrl,
+      options.storeHash,
+      options.accessToken,
+      options.apiHost,
+    );
 
-  consola.success(`Updated channel ${channelLabel} site URL to ${siteUrl}.`);
+    consola.success(`Updated channel ${channelLabel} site URL to ${siteUrl}.`);
+
+    const checkoutUrl =
+      current && options.preserveCheckoutUrl !== false
+        ? preservableCheckoutUrl(current, hostnameOf(siteUrl) ?? hostname)
+        : undefined;
+
+    if (checkoutUrl) {
+      try {
+        await updateChannelCheckoutUrl(
+          channel.id,
+          checkoutUrl,
+          options.storeHash,
+          options.accessToken,
+          options.apiHost,
+        );
+
+        consola.success(`Kept channel ${channelLabel} checkout URL ${checkoutUrl}.`);
+      } catch {
+        // The site URL write succeeded, so don't fail the command over it.
+        consola.warn(`Couldn't restore channel ${channelLabel} checkout URL ${checkoutUrl}.`);
+        consola.log(
+          `  catalyst channels update --channel-id ${channel.id} --checkout-url ${checkoutUrl}`,
+        );
+      }
+    }
+  }
+
+  // Moving the site URL is when checkout is most likely left behind. The PUT
+  // response above carries no `urls`, hence the re-fetch. Soft-failed: the write
+  // already succeeded, so a failed diagnostic mustn't look like a failed write.
+  if (options.diagnoseCheckout === false) return { channelId: channel.id, hostname };
+
+  try {
+    const site = await getChannelSite(
+      channel.id,
+      options.storeHash,
+      options.accessToken,
+      options.apiHost,
+    );
+
+    const report = warnOnCrossDomainCheckout(site);
+
+    // Can run mid-deploy, so it prints a command rather than prompting. Not on a
+    // managed zone, where the diagnostic already printed one.
+    if (report.crossDomain && report.storefrontOnManagedZone !== true) {
+      consola.info('Set a checkout URL for this channel with:');
+      consola.log(
+        `  catalyst channels update --channel-id ${channel.id}` +
+          ` --checkout-url ${report.suggestion ?? '<domain>'}`,
+      );
+    }
+  } catch {
+    // Diagnostics are advisory; the write above succeeded.
+  }
+
+  // Returned so a caller running several channel flows back to back — `channels
+  // update --hostname --checkout-url`, or `deploy --update-site-url
+  // --update-checkout-url` — reuses this channel instead of resolving it twice.
+  return { channelId: channel.id, hostname };
 }

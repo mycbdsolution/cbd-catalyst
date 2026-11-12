@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.4
+
+### Patch Changes
+
+- [#3263](https://github.com/bigcommerce/catalyst/pull/3263) [`4db7221`](https://github.com/bigcommerce/catalyst/commit/4db7221e2d2e9bbc4c2541306f7b50daabbef4b9) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Retry Storefront GraphQL queries that fail on a dropped connection or a `502`, `503`, or `504`. Previously a single upstream hiccup threw straight to the error page ("There was a server error!"). Queries are now retried up to twice, after 100ms and 300ms, including when the connection drops while the response body is being read (`TypeError: terminated`). Mutations are never retried, since they aren't idempotent, and 4xx responses, GraphQL errors, and aborted requests fail immediately as before. Each retry logs a `console.warn` naming the operation, the attempt, and the failure (for example `[BigCommerce] Retrying query GetSite after HTTP 502 (attempt 2 of 3)`), so recovered failures still show up in server logs.
+
+## 1.0.3
+
+### Patch Changes
+
+- [#3158](https://github.com/bigcommerce/catalyst/pull/3158) [`be1967c`](https://github.com/bigcommerce/catalyst/commit/be1967ce85e2e71bf2cf8e0c0837aad66e423ceb) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Surface a clearer error when `BIGCOMMERCE_STOREFRONT_TOKEN` is not a storefront JWT. Previously an incompatible token (e.g. an OAuth access token) produced a bare 401 with no explanation. The client now detects when a 401 is returned with a token that isn't a well-formed storefront JWT and throws `InvalidStorefrontTokenError` explaining that a storefront JWT is required and how to generate one.
+
 ## 1.0.2
 
 ### Patch Changes

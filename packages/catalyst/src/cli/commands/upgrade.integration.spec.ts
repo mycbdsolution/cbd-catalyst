@@ -9,7 +9,8 @@ import { execSync } from 'node:child_process';
 import { access, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
+import { z } from 'zod';
 
 vi.setConfig({ hookTimeout: 60_000 });
 
@@ -19,8 +20,14 @@ import {
   downloadCore,
   mergeCorePerFile,
   mergeCoreTree,
+  normalizeManagedScripts,
+  normalizeWorkspaceDeps,
   resolveProject,
+  rewriteScriptCommand,
+  rewriteWorkspaceSpecifier,
 } from './upgrade';
+
+const CLIENT = '@bigcommerce/catalyst-client';
 
 const SUPPORTS_TREE = (() => {
   try {
@@ -65,17 +72,65 @@ const TARGET_REF = '@bigcommerce/catalyst-core@1.7.0';
 const MAKESWIFT_BASE_REF = '@bigcommerce/catalyst-makeswift@1.2.0';
 const MAKESWIFT_TARGET_REF = '@bigcommerce/catalyst-makeswift@1.3.0';
 
-async function fetchTarballs(root: string): Promise<{ baseDir: string; theirsDir: string }> {
-  const baseDir = join(root, 'base');
-  const theirsDir = join(root, 'theirs');
+// The pair that straddles the `"test": "vitest run"` addition in core 1.11.0.
+const SCRIPTS_BASE_REF = '@bigcommerce/catalyst-core@1.10.0';
+const SCRIPTS_TARGET_REF = '@bigcommerce/catalyst-core@1.11.1';
 
-  await Promise.all([
-    downloadCore(REPO, BASE_REF, baseDir),
-    downloadCore(REPO, TARGET_REF, theirsDir),
-  ]);
+// The commands `catalyst create` writes — see lib/setup-core-project.ts.
+const CLI_BUILD = 'npm run generate && catalyst build';
+const CLI_START = 'catalyst start';
+const CLI_DEPLOY = 'npm run generate && catalyst deploy';
 
-  return { baseDir, theirsDir };
+const ParsedPkg = z.looseObject({ scripts: z.record(z.string(), z.string()) });
+
+const parsePkg = (raw: string) => ParsedPkg.parse(JSON.parse(raw));
+
+interface Tarballs {
+  baseDir: string;
+  theirsDir: string;
 }
+
+// Downloaded once per tag pair and shared, since re-copying ~600 files per test
+// dominated this suite's runtime on Windows. Only for tests that never write to
+// base/theirs — normalizeWorkspaceDeps and normalizeManagedScripts rewrite
+// their package.json, so tests calling those download their own copies.
+const sharedTarballs = new Map<string, Promise<Tarballs>>();
+const sharedDirs: string[] = [];
+
+function fetchSharedTarballs(baseRef = BASE_REF, targetRef = TARGET_REF): Promise<Tarballs> {
+  const key = `${baseRef}..${targetRef}`;
+  const cached = sharedTarballs.get(key);
+
+  if (cached) return cached;
+
+  const tarballs = (async () => {
+    const root = await mkdtemp(join(tmpdir(), 'upgrade-integ-shared-'));
+
+    sharedDirs.push(root);
+
+    const baseDir = join(root, 'base');
+    const theirsDir = join(root, 'theirs');
+
+    await Promise.all([
+      downloadCore(REPO, baseRef, baseDir),
+      downloadCore(REPO, targetRef, theirsDir),
+    ]);
+
+    return { baseDir, theirsDir };
+  })();
+
+  sharedTarballs.set(key, tarballs);
+
+  return tarballs;
+}
+
+afterAll(async () => {
+  await Promise.all(
+    sharedDirs
+      .splice(0)
+      .map((d) => rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })),
+  );
+});
 
 async function initGitProject(dir: string): Promise<void> {
   await execa('git', ['init', '-q'], { cwd: dir });
@@ -99,10 +154,70 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
       : mergeCorePerFile(baseDir, theirsDir, oursDir, emptyFile);
 
   test(
+    'bumps a Catalyst dependency across the real 1.6.3 → 1.7.0 tags',
+    async () => {
+      const root = await mkTmp();
+      const baseDir = join(root, 'base');
+      const theirsDir = join(root, 'theirs');
+      const [baseVersions, targetVersions] = await Promise.all([
+        downloadCore(REPO, BASE_REF, baseDir),
+        downloadCore(REPO, TARGET_REF, theirsDir),
+      ]);
+
+      // The published client really did move between these two tags — the whole
+      // reason the dependency needs reconciling at all.
+      expect(baseVersions[CLIENT]).toBe('1.0.1');
+      expect(targetVersions[CLIENT]).toBe('1.0.2');
+
+      // Both tags still carry the workspace specifier in their committed tree,
+      // which is why an unassisted merge leaves the merchant's version frozen.
+      expect(await readFile(join(baseDir, 'package.json'), 'utf-8')).toContain(
+        `"${CLIENT}": "workspace:^"`,
+      );
+
+      // A flat project: `catalyst create` resolved the specifier at scaffold
+      // time, so the merchant holds a real range.
+      const oursDir = join(root, 'project');
+
+      await cp(baseDir, oursDir, { recursive: true });
+
+      const pkgPath = join(oursDir, 'package.json');
+
+      await writeFile(
+        pkgPath,
+        rewriteWorkspaceSpecifier(await readFile(pkgPath, 'utf-8'), CLIENT, '1.0.1'),
+      );
+      await initGitProject(oursDir);
+
+      const { workspace, bumped } = await normalizeWorkspaceDeps(
+        await readFile(pkgPath, 'utf-8'),
+        baseDir,
+        theirsDir,
+        baseVersions,
+        targetVersions,
+      );
+
+      expect(bumped).toContain(CLIENT);
+      // The project isn't on the workspace protocol, so there's nothing to migrate.
+      expect(workspace.map((finding) => finding.name)).not.toContain(CLIENT);
+
+      const emptyFile = join(root, '.empty');
+
+      await writeFile(emptyFile, '');
+
+      const result = await runMerge(baseDir, theirsDir, oursDir, emptyFile);
+
+      expect(result.conflicted).not.toContain('package.json');
+      expect(await readFile(pkgPath, 'utf-8')).toContain(`"${CLIENT}": "^1.0.2"`);
+    },
+    TIMEOUT,
+  );
+
+  test(
     'clean project upgrades without conflicts and all changes staged',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       // Project = fresh copy of 1.6.3 with no merchant modifications.
       const oursDir = join(root, 'project');
@@ -139,7 +254,7 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     'merchant-deleted file that upstream modifies is restored as a conflict',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       // Start from the base version, then delete package.json — a file upstream always
       // modifies (version bump at minimum between 1.6.3 and 1.7.0).
@@ -166,7 +281,7 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     'merchant dep addition in a non-overlapping region is preserved after upgrade',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       const oursDir = join(root, 'project');
 
@@ -205,7 +320,7 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     're-merging after upgrade with identical base and target produces no changes',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       const oursDir = join(root, 'project');
 
@@ -234,7 +349,7 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     'flat repo layout — changes land at root and resolveProject detects relDir "."',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       // Flat layout: extract base tarball contents directly to the repo root (no core/ subdir).
       const oursDir = join(root, 'flat-project');
@@ -274,7 +389,7 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     'file modified by merchant AND upstream produces conflict markers',
     async () => {
       const root = await mkTmp();
-      const { baseDir, theirsDir } = await fetchTarballs(root);
+      const { baseDir, theirsDir } = await fetchSharedTarballs();
 
       // Merchant project: start from 1.6.3, then change package.json's version
       // field — the same field that the 1.6.3 → 1.7.0 diff also touches.
@@ -308,6 +423,106 @@ describe.each(engines)('integration (engine: %s)', (engine) => {
     },
     TIMEOUT,
   );
+
+  // Regression: core 1.11.0 added `"test": "vitest run"` on the line directly
+  // below `"start"`, which put a genuine upstream insertion right next to the
+  // one line `catalyst create` had rewritten. The merge conflicted, and
+  // resolving toward theirs reverted `catalyst start` to `next start`.
+  test(
+    'keeps the CLI-managed scripts across the real 1.10.0 → 1.11.1 tags',
+    async () => {
+      const root = await mkTmp();
+      const baseDir = join(root, 'base');
+      const theirsDir = join(root, 'theirs');
+
+      await Promise.all([
+        downloadCore(REPO, SCRIPTS_BASE_REF, baseDir),
+        downloadCore(REPO, SCRIPTS_TARGET_REF, theirsDir),
+      ]);
+
+      // The adjacency that caused the regression is a property of these two
+      // tags, so assert it rather than assume it.
+      expect(await readFile(join(baseDir, 'package.json'), 'utf-8')).not.toContain('"vitest run"');
+      expect(await readFile(join(theirsDir, 'package.json'), 'utf-8')).toContain(
+        `"start": "next start",\n    "test": "vitest run"`,
+      );
+
+      const emptyFile = join(root, '.empty');
+
+      await writeFile(emptyFile, '');
+
+      // Merchant project = 1.10.0 with the scripts `catalyst create` writes.
+      const withCliScripts = [
+        ['build', CLI_BUILD],
+        ['start', CLI_START],
+        ['deploy', CLI_DEPLOY],
+      ].reduce(
+        (acc, [name, command]) => rewriteScriptCommand(acc, name, command),
+        await readFile(join(baseDir, 'package.json'), 'utf-8'),
+      );
+
+      const makeProject = async (name: string): Promise<string> => {
+        const dir = join(root, name);
+
+        await cp(baseDir, dir, { recursive: true });
+        await writeFile(join(dir, 'package.json'), withCliScripts);
+        await initGitProject(dir);
+
+        return dir;
+      };
+
+      // Control: merging these tags untouched is what regressed. Neither engine
+      // can reconcile the two adjacent changes, and the hunk it produces offers
+      // `next start` as the incoming side — take it and `catalyst start` is gone.
+      const controlDir = await makeProject('control');
+      const control = await runMerge(baseDir, theirsDir, controlDir, emptyFile);
+
+      expect(control.conflicted).toContain('package.json');
+
+      const conflicted = await readFile(join(controlDir, 'package.json'), 'utf-8');
+
+      // Both commands sit in the hunk — the merchant is asked to choose, and the
+      // incoming side is the one that reverts them. (Marker labels differ per
+      // engine, so match on the content rather than the label.)
+      expect(conflicted).toContain('<<<<<<<');
+      expect(conflicted).toContain(`"start": "${CLI_START}"`);
+      expect(conflicted).toContain('"start": "next start"');
+      expect(conflicted).toContain('"test": "vitest run"');
+
+      // Now the real path: pin the CLI-managed lines on both downloaded sides
+      // first, which is what removes the collision.
+      const oursDir = await makeProject('project');
+      const pkgPath = join(oursDir, 'package.json');
+
+      const { pinned, upstreamChanged } = await normalizeManagedScripts(
+        withCliScripts,
+        baseDir,
+        theirsDir,
+      );
+
+      expect(pinned).toEqual(['build', 'start', 'deploy']);
+      // Core didn't change the commands themselves, only what sits next to them.
+      expect(upstreamChanged).toEqual([]);
+
+      const result = await runMerge(baseDir, theirsDir, oursDir, emptyFile);
+
+      expect(result.conflicted).not.toContain('package.json');
+
+      const merged = await readFile(pkgPath, 'utf-8');
+
+      expect(merged).not.toContain('<<<<<<<');
+
+      const { scripts } = parsePkg(merged);
+
+      // The CLI scripts survived...
+      expect(scripts.build).toBe(CLI_BUILD);
+      expect(scripts.start).toBe(CLI_START);
+      expect(scripts.deploy).toBe(CLI_DEPLOY);
+      // ...and the upstream addition that used to collide with them landed.
+      expect(scripts.test).toBe('vitest run');
+    },
+    TIMEOUT,
+  );
 });
 
 describe.each(engines)('integration makeswift family (engine: %s)', (engine) => {
@@ -320,13 +535,10 @@ describe.each(engines)('integration makeswift family (engine: %s)', (engine) => 
     'clean makeswift project (1.2.0 → 1.3.0) upgrades without conflicts',
     async () => {
       const root = await mkTmp();
-      const baseDir = join(root, 'base');
-      const theirsDir = join(root, 'theirs');
-
-      await Promise.all([
-        downloadCore(REPO, MAKESWIFT_BASE_REF, baseDir),
-        downloadCore(REPO, MAKESWIFT_TARGET_REF, theirsDir),
-      ]);
+      const { baseDir, theirsDir } = await fetchSharedTarballs(
+        MAKESWIFT_BASE_REF,
+        MAKESWIFT_TARGET_REF,
+      );
 
       const oursDir = join(root, 'project');
 
@@ -357,13 +569,10 @@ describe.each(engines)('integration makeswift family (engine: %s)', (engine) => 
     'computeBaseSimilarity scores higher for the correct makeswift base than a wrong base',
     async () => {
       const root = await mkTmp();
-      const baseDir = join(root, 'base');
-      const theirsDir = join(root, 'theirs');
-
-      await Promise.all([
-        downloadCore(REPO, MAKESWIFT_BASE_REF, baseDir),
-        downloadCore(REPO, MAKESWIFT_TARGET_REF, theirsDir),
-      ]);
+      const { baseDir, theirsDir } = await fetchSharedTarballs(
+        MAKESWIFT_BASE_REF,
+        MAKESWIFT_TARGET_REF,
+      );
 
       // "Project" = clean makeswift 1.2.0 (no modifications).
       const projectDir = join(root, 'project');
@@ -386,7 +595,7 @@ test(
   'computeBaseSimilarity: correct base scores higher than a wrong base',
   async () => {
     const root = await mkTmp();
-    const { baseDir, theirsDir } = await fetchTarballs(root);
+    const { baseDir, theirsDir } = await fetchSharedTarballs();
 
     // "Project" = clean 1.6.3 (no merchant modifications).
     const projectDir = join(root, 'project');

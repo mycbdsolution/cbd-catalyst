@@ -1,5 +1,334 @@
 # Changelog
 
+## 1.14.0
+
+### Minor Changes
+
+- [#3323](https://github.com/bigcommerce/catalyst/pull/3323) [`58fbb6e`](https://github.com/bigcommerce/catalyst/commit/58fbb6ecaafe36bf3510f49943e48ad6b822a120) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Show the products a pick list option adds to the cart under their parent line item, instead of hiding them. Each one keeps its pick list option's label and shows its own selected options, and its quantity only when it differs from the parent's. The parent's price already includes them, so they have no price of their own.
+
+  Migration: `CartLineItem` gains an optional `includedItems` array and the `Cart` section an optional `includedItemsLabel` prop. Add the `Cart.includedItems` message if you maintain your own translations.
+
+- [#3329](https://github.com/bigcommerce/catalyst/pull/3329) [`16d0c07`](https://github.com/bigcommerce/catalyst/commit/16d0c07392836cc077ebbb6ef254756b78d3b93f) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Send OpenTelemetry spans to Cloudflare Workers tracing when running on Workers. `instrumentation.ts` now detects the Workers runtime and registers a bridge that hands spans from Next.js and `~/lib/otel/tracer` to the runtime's native tracing, instead of loading `@vercel/otel`, which fails on Workers. Other runtimes keep using `@vercel/otel`.
+
+  Migration: if you customized `instrumentation.ts`, keep your `registerOTel()` call behind the new Workers check and import `@vercel/otel` lazily, so it never loads on Workers.
+
+### Patch Changes
+
+- [#3319](https://github.com/bigcommerce/catalyst/pull/3319) [`f44387e`](https://github.com/bigcommerce/catalyst/commit/f44387e86f3d45e70671783934d08d157d1b4b57) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Initialize analytics providers before the first event. Events like `productViewed` fire from child effects that run before `AnalyticsProvider` calls `initialize()`, so the Google Analytics provider called `gtag` before it was defined.
+
+- [#3060](https://github.com/bigcommerce/catalyst/pull/3060) [`4793d51`](https://github.com/bigcommerce/catalyst/commit/4793d5136218b4ac37fed16ef37003c7469c3357) Thanks [@apostoliukG](https://github.com/apostoliukG)! - Keep the cart quantity column at a fixed width so long backorder/inventory messages wrap to the next line instead of stretching the column.
+
+- [#3317](https://github.com/bigcommerce/catalyst/pull/3317) [`a988a9c`](https://github.com/bigcommerce/catalyst/commit/a988a9c8fac5f00d450ff380b66b8c187ccd105d) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Include sub-categories when filtering by the Category facet on brand and search pages. Selecting a parent category previously returned no products when they were assigned only to its sub-categories, even though the facet's counts included them.
+
+- [#3318](https://github.com/bigcommerce/catalyst/pull/3318) [`e90ea0c`](https://github.com/bigcommerce/catalyst/commit/e90ea0c26a8aec8288d68294c49a90c6bb72e8df) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Hide the desktop filters column on product list pages when there are no filters, so products use the full width instead of leaving an empty column.
+
+- [#3325](https://github.com/bigcommerce/catalyst/pull/3325) [`ef210dd`](https://github.com/bigcommerce/catalyst/commit/ef210dde564a1c0ca3dc7822d6e07b34e57cbab1) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Upgrade Next.js to 16.4.3, which `@opennextjs/cloudflare` 1.20.15 requires and which moves off the versions affected by the `next/og` vulnerability (CVE-2026-94545).
+
+- [#3320](https://github.com/bigcommerce/catalyst/pull/3320) [`a00008e`](https://github.com/bigcommerce/catalyst/commit/a00008e6029d144dcdb01639060424e37060288c) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Rethrow Next.js redirects from server action `catch` blocks. When a session is invalidated, the GraphQL client redirects to sign out, but actions such as add to cart caught that redirect and showed it as a form error instead.
+
+- [#3326](https://github.com/bigcommerce/catalyst/pull/3326) [`d0ee559`](https://github.com/bigcommerce/catalyst/commit/d0ee559913e644624c1f78a82f92292b585d8d90) Thanks [@bc-svc-local](https://github.com/bc-svc-local)! - Update translations.
+
+- [#3296](https://github.com/bigcommerce/catalyst/pull/3296) [`b1a6cd8`](https://github.com/bigcommerce/catalyst/commit/b1a6cd8bdba92733cc542941c18f96f1393cb425) Thanks [@bookernath](https://github.com/bookernath)! - Add the `verify-catalyst` agent skill (`.agents/skills/verify-catalyst`), which drives the storefront in a real browser to prove UI changes and attaches screenshot, video, and trace evidence to pull requests. It works in the monorepo and in projects created with `create catalyst`, on macOS, Linux, and Windows.
+
+## 1.13.1
+
+### Patch Changes
+
+- [#3294](https://github.com/bigcommerce/catalyst/pull/3294) [`7007163`](https://github.com/bigcommerce/catalyst/commit/70071638845805c02434035faf85037d431b8b0a) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Only relay checkout-sdk-js wallet button operations through `/graphql`; reject anything else with a `403`.
+
+- [#3295](https://github.com/bigcommerce/catalyst/pull/3295) [`0bff6a9`](https://github.com/bigcommerce/catalyst/commit/0bff6a949ab91c495621b2a4dd8955bdb2b1408e) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Strip tracking params (`utm_*`, `gclid`, `fbclid`, etc.) from the route lookup cache key. Redirects whose source matches on a tracking param no longer match.
+
+- [#3305](https://github.com/bigcommerce/catalyst/pull/3305) [`82ba996`](https://github.com/bigcommerce/catalyst/commit/82ba9961b17c7d8c08d552fcea6621d38cdc562e) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Stop sending the `VisitStarted` and `ProductViewed` analytics events for requests that aren't page navigations from a browser, such as bots, crawlers, scripts and fetch or subresource requests. These clients rarely keep cookies, so each of their requests previously sent an uncached analytics mutation to BigCommerce.
+
+- [#3300](https://github.com/bigcommerce/catalyst/pull/3300) [`1e4e862`](https://github.com/bigcommerce/catalyst/commit/1e4e862cdc59e14df7f5dce16f6ffd88e7c20ab1) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Give every `client.fetch` call an explicit cache option, so reads like the maintenance page message no longer sit in the Data Cache indefinitely and mutations always forward the shopper IP. Switching back to the store default currency now clears the currency cookie, so it no longer creates a second cache entry.
+
+- [#3287](https://github.com/bigcommerce/catalyst/pull/3287) [`2d1d9df`](https://github.com/bigcommerce/catalyst/commit/2d1d9dfe9e4f7b8fd013a5811ec60139222610ec) Thanks [@bc-yevhenii-buliuk](https://github.com/bc-yevhenii-buliuk)! - Fix the password reset email sent to customers flagged with "Request customer to set their password on next login". BigCommerce generates that link in the legacy Stencil format (`/login?action=change_password&c=<id>&t=<token>`), which the login page ignored. The login page now forwards it to `/change-password` so the customer can set a new password.
+
+- [#3298](https://github.com/bigcommerce/catalyst/pull/3298) [`1102cfb`](https://github.com/bigcommerce/catalyst/commit/1102cfb129eabd688ca6b98801bf55c052fb0457) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Forward the caller's IP as `X-Forwarded-For` and `True-Client-IP` on the UCP proxy, as the GraphQL client already does, so BigCommerce can apply per-IP limits to UCP requests.
+
+- [#3303](https://github.com/bigcommerce/catalyst/pull/3303) [`4a8752f`](https://github.com/bigcommerce/catalyst/commit/4a8752fe4ecf5cec8f9d8709658aab272ba6775a) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Log a warning in production when the proxy's route cache falls back to per-instance memory because no shared KV store is configured, and document which hosts need one.
+
+- [#3302](https://github.com/bigcommerce/catalyst/pull/3302) [`8e4a393`](https://github.com/bigcommerce/catalyst/commit/8e4a3939af7981043c84d0b89abcf337f88032ff) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Run the E2E `tests-chromium` Playwright project in full Chromium headless mode (`channel: 'chromium'`). The headless shell sends `HeadlessChrome` in `sec-ch-ua`, which BigCommerce treats as a crawler and rejects on checkout session sync, so the checkout E2E tests failed.
+
+## 1.13.0
+
+### Minor Changes
+
+- [#3281](https://github.com/bigcommerce/catalyst/pull/3281) [`92098bc`](https://github.com/bigcommerce/catalyst/commit/92098bc04263e830d827605e36491c4ffa7bd156) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Add a `DISABLE_ANALYTICS` env var. When set to `true`, the storefront sends no analytics: no BigCommerce `VisitStarted` or `ProductViewed` events (existing `catalyst.visitorId`, `catalyst.visitId` and `catalyst.productViews` cookies are removed), no Google Analytics, no Script Manager scripts in the Analytics category, and no Vercel Analytics or Speed Insights. Set it at build time, since the root layout reads it while prerendering.
+
+  ## Migration
+
+  Add `core/lib/analytics/is-analytics-disabled.ts`:
+
+  ```ts
+  export const isAnalyticsDisabled = () => process.env.DISABLE_ANALYTICS === 'true';
+  ```
+
+  Then check it in each place analytics are sent:
+  - `core/proxies/with-analytics-cookies.ts`: move the cookie deletion from the `declined` branch into a `deleteAnalyticsCookies()` function, and first thing, when `isAnalyticsDisabled()`, call it and return `next(request, event)`.
+  - `core/proxies/with-routes.ts`: add `!isAnalyticsDisabled() &&` to the condition that calls `recordProductVisit`.
+  - `core/components/consent-manager/_actions/start-visit.ts`: return early when `isAnalyticsDisabled()`.
+  - `core/components/consent-manager/index.tsx`: when `isAnalyticsDisabled()`, drop `measurement` scripts before passing `scripts` to `ConsentManagerProvider`, and don't render `<StartVisitOnConsent />`.
+  - `core/app/[locale]/layout.tsx`: return `null` from `VercelComponents` when `isAnalyticsDisabled()`, and pass `settings={isAnalyticsDisabled() ? null : rootData.data.site.settings}` to `AnalyticsProvider`.
+
+### Patch Changes
+
+- [#3254](https://github.com/bigcommerce/catalyst/pull/3254) [`75aa709`](https://github.com/bigcommerce/catalyst/commit/75aa7099f9da397aac96eae1e24f0cdda6d7ffad) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Fix the cart shipping estimator not updating until a page reload. After "View shipping options", "Add shipping", or a quantity change, the shipping form now reflects the new address, quote, and selected option immediately.
+
+  ## Migration
+
+  In `core/vibes/soul/sections/cart/client.tsx`, key the `ShippingForm` on the server's shipping state so it remounts when that state changes:
+
+  ```tsx
+  {
+    shipping && (
+      <ShippingForm
+        key={JSON.stringify([
+          shipping.address,
+          shipping.shippingOptions,
+          shipping.shippingOption?.value,
+          shipping.showShippingForm,
+        ])}
+        {...shipping}
+      />
+    );
+  }
+  ```
+
+- [#3261](https://github.com/bigcommerce/catalyst/pull/3261) [`24dacae`](https://github.com/bigcommerce/catalyst/commit/24dacaebb7fcdb8956dafcf0aaecb0c10071e5fe) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Speed up routing cache reads on Storefront Hosting. The Cloudflare KV adapter now caches reads at each Cloudflare location for 5 minutes instead of Workers KV's 60-second default, so most `with-routes` lookups that miss the in-process cache take a few milliseconds instead of a trip to central KV storage. The trade-off is staleness: in the worst case, a storefront status change (maintenance mode, launch) can take up to about 11 minutes to reach a location instead of about 7. It's usually sooner, since the background refresh's write is normally visible at once in the location that made it. Route changes have the same 4 extra minutes on top of their 30-minute window.
+
+  ## Migration
+
+  In `core/lib/kv/adapters/cloudflare-kv.ts`, pass a `cacheTtl` when reading from the namespace:
+
+  ```ts
+  const ROUTES_READ_CACHE_TTL_SECONDS = 60 * 5;
+
+  // RoutesKvNamespace
+  get(key: string, options: { type: 'json'; cacheTtl?: number }): Promise<unknown>;
+
+  // CloudflareKvAdapter.mget
+  const value = await this.namespace.get(key, {
+    type: 'json',
+    cacheTtl: ROUTES_READ_CACHE_TTL_SECONDS,
+  });
+  ```
+
+- [#3272](https://github.com/bigcommerce/catalyst/pull/3272) [`95f78f9`](https://github.com/bigcommerce/catalyst/commit/95f78f91e7d39c5cac2256f7f2d6c71858bc36b1) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Add the product the shopper is viewing to the cart, even if the product page's hidden `id` field was edited. The add to cart form now sets the product ID from its `productId` prop right before calling the action, so changing the field in devtools or with a script no longer adds a different product. The hidden input stays so add to cart still works without JavaScript.
+
+  ## Migration
+
+  In `core/vibes/soul/sections/product-detail/product-detail-form.tsx`, set the product ID in the `onSubmit` handler before calling the action:
+
+  ```ts
+  onSubmit(event, { formData }) {
+    event.preventDefault();
+
+    // Use the product from props, not the hidden field, so editing the form can't add a different product.
+    formData.set('id', productId);
+
+    startTransition(() => {
+      formAction(formData);
+
+      events.onAddToCart?.(formData);
+    });
+  },
+  ```
+
+- [#3271](https://github.com/bigcommerce/catalyst/pull/3271) [`42fd792`](https://github.com/bigcommerce/catalyst/commit/42fd792f784097d65e09c6550a81af476a853b67) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Send the `ProductViewed` analytics event once per product per visit. Before, every PDP request with the visit cookies sent one, so refreshes and repeat hits each cost BigCommerce an uncacheable GraphQL mutation. The product ids already reported are kept in a new `catalyst.productViews` cookie tied to the current visit id, with the same sliding 30-minute lifetime as `catalyst.visitId`, and the cookie is removed along with the other analytics cookies when measurement consent is declined.
+
+  ## Migration
+
+  Add `core/lib/analytics/bigcommerce/product-views.ts` (with `addProductView` and `parseProductViews`), and `getProductViewsCookie`, `setProductViewsCookie` and `deleteProductViewsCookie` to `core/lib/analytics/bigcommerce/index.ts`.
+
+  In `core/proxies/with-routes.ts`, only record the visit on the first view of the product in the current visit:
+
+  ```ts
+  if (!isPrefetch && !isRSC && (await isFirstViewInVisit(node.entityId))) {
+    event.waitUntil(recordProductVisit(req, node.entityId));
+  }
+
+  async function isFirstViewInVisit(productId: number) {
+    const visitId = await getVisitIdCookie();
+
+    if (!visitId) {
+      return false;
+    }
+
+    const productViews = addProductView(await getProductViewsCookie(), visitId, productId);
+
+    if (!productViews) {
+      return false;
+    }
+
+    await setProductViewsCookie(productViews);
+
+    return true;
+  }
+  ```
+
+  In `core/proxies/with-analytics-cookies.ts`, delete the cookie when consent is declined, and refresh it along with the visit cookie:
+
+  ```ts
+  if ((await getProductViewsCookie()) != null) {
+    await deleteProductViewsCookie();
+  }
+
+  // In the `hasValidVisit` branch, after `setVisitIdCookie(existingVisitId)`:
+  const existingProductViews = await getProductViewsCookie();
+
+  if (existingProductViews != null) {
+    await setProductViewsCookie(existingProductViews);
+  }
+  ```
+
+- [#3280](https://github.com/bigcommerce/catalyst/pull/3280) [`446ecdf`](https://github.com/bigcommerce/catalyst/commit/446ecdf1a1fb877b5aeeabff04b3b573bc066237) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Send the Catalyst `User-Agent` when fetching the GraphQL schema during `dev` and `build`, matching the storefront's runtime requests.
+
+- [#3269](https://github.com/bigcommerce/catalyst/pull/3269) [`0755fff`](https://github.com/bigcommerce/catalyst/commit/0755fff23922a74813fd5df0c9a60b50f675d3ea) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Fix the product gallery not updating when selecting a variant with a different default image.
+
+  ## Migration
+
+  In `core/vibes/soul/sections/product-detail/index.tsx`, key both `ProductGallery` usages on the first image so the gallery remounts when the variant's default image changes:
+
+  ```tsx
+  <ProductGallery
+    images={imagesData.images}
+    key={imagesData.images[0]?.src}
+    ...
+  />
+  ```
+
+- Updated dependencies [[`4db7221`](https://github.com/bigcommerce/catalyst/commit/4db7221e2d2e9bbc4c2541306f7b50daabbef4b9)]:
+  - @bigcommerce/catalyst-client@1.0.4
+
+## 1.12.2
+
+### Patch Changes
+
+- [#3246](https://github.com/bigcommerce/catalyst/pull/3246) [`f75acc2`](https://github.com/bigcommerce/catalyst/commit/f75acc28f16df041806bbdc3733964c22b9c3042) Thanks [@mfaris9](https://github.com/mfaris9)! - Always render the `hosting` meta tag: `native` on native hosting, `vercel` on Vercel, `other` everywhere else. Previously it was omitted off native hosting.
+
+- [#3239](https://github.com/bigcommerce/catalyst/pull/3239) [`00c2f48`](https://github.com/bigcommerce/catalyst/commit/00c2f486582f1cf055edce1d432a7a46c7bfbaef) Thanks [@mfaris9](https://github.com/mfaris9)! - Add `hosting` and `channel_id` meta tags so Support can confirm a storefront is served by native hosting and which channel it belongs to. `hosting` renders the `CATALYST_HOSTING` env var, which `catalyst deploy` sets to `native`.
+
+- [#3244](https://github.com/bigcommerce/catalyst/pull/3244) [`b341810`](https://github.com/bigcommerce/catalyst/commit/b341810c43504b5c814be61223c299838d1c1b57) Thanks [@bc-yevhenii-buliuk](https://github.com/bc-yevhenii-buliuk)! - Keep a separate cart for each channel so a cart created on one channel is not shown or checked out on another.
+
+## 1.12.1
+
+### Patch Changes
+
+- [#3231](https://github.com/bigcommerce/catalyst/pull/3231) [`f25d98d`](https://github.com/bigcommerce/catalyst/commit/f25d98d746efe90bf87fe3dd3297aee09d054301) Thanks [@parthshahp](https://github.com/parthshahp)! - Preserve configured Auth.js session-token cookie attributes when converting the token to a browser-session cookie. This prevents integrations that use partitioned cookies from creating a second, unpartitioned session token that can survive logout.
+
+## 1.12.0
+
+### Minor Changes
+
+- [#3215](https://github.com/bigcommerce/catalyst/pull/3215) [`12b4a73`](https://github.com/bigcommerce/catalyst/commit/12b4a73cde46633a0017563c471f31076c15ba99) Thanks [@davidchin](https://github.com/davidchin)! - Serve the UCP (agentic commerce) endpoints. Agents discover and call UCP on the storefront's public domain, but it is served by the BigCommerce platform rather than by Catalyst, so `/.well-known/ucp` and `/api/ucp/*` are now proxied through to BigCommerce for every HTTP method. Previously `/api/ucp/*` 404'd and `/.well-known/ucp` was locale-redirected.
+
+  Only the headers the [UCP REST transport spec](https://ucp.dev/2026-04-08/specification/checkout-rest/) defines are passed in either direction, so nothing outside the spec is exchanged with a separate origin. No new environment variable is required.
+
+  If you have customised `proxy.ts`, add `withUcpProxy` as the first argument to `composeProxies` and add `/api/ucp/:path*` to `config.matcher`.
+
+### Patch Changes
+
+- [#3221](https://github.com/bigcommerce/catalyst/pull/3221) [`09cb855`](https://github.com/bigcommerce/catalyst/commit/09cb85574e6f09cd4422034146b6ad4917af1fc9) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Stop sending `X-Correlation-ID` on cacheable GraphQL requests, which was making every Next.js Data Cache lookup miss.
+
+  The correlation ID is a fresh `crypto.randomUUID()` per request, memoized for the duration of a render by `React.cache`. Next.js builds its Data Cache key from the fetch URL, method, body **and headers** (`generateCacheKey` in `next/dist/server/lib/incremental-cache`), so a header that changes on every request produces a unique key on every request. Fetches configured with `next: { revalidate }` could therefore never hit: each one missed, went out to the BigCommerce GraphQL API, and wrote a new entry that nothing would ever read again. On a product page that is ~12 queries per page view — the full uncached render cost, every time, plus unbounded growth in the data cache.
+
+  Next.js already strips `traceparent` and `tracestate` from the cache key for exactly this reason, but it can only do that for headers it knows about.
+
+  The correlation ID now follows the same rule as `X-Forwarded-For` and `True-Client-IP` in the same hook: it is attached only when `fetchOptions.cache` is `no-store` or `no-cache`. Those requests are uncacheable by construction, so there is no cache key to pollute, and they are the per-customer requests where a correlation ID is most useful for tracing. Cacheable requests now share a stable key and hit the Data Cache as intended.
+
+- [#3224](https://github.com/bigcommerce/catalyst/pull/3224) [`f2f01e7`](https://github.com/bigcommerce/catalyst/commit/f2f01e7f0df59bb401b2d09a6355c6667f8bf0bd) Thanks [@davidchin](https://github.com/davidchin)! - Strip the trailing slash from UCP paths before proxying them to BigCommerce. Catalyst serves trailing-slash URLs, so `/api/ucp/checkout-sessions` reached the proxy as `/api/ucp/checkout-sessions/`, and the platform answers a trailing slash with a 307 back to the bare path — which an agent resolves against the storefront domain and sends straight back, so the call never lands. Agents still follow Catalyst's own `trailingSlash` redirect on the way in.
+
+## 1.11.1
+
+### Patch Changes
+
+- [#3170](https://github.com/bigcommerce/catalyst/pull/3170) [`ccad51f`](https://github.com/bigcommerce/catalyst/commit/ccad51fcdd5f907d5db2b87c3bbb082565a0f7c0) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Use Cloudflare Workers KV for the routing cache on BigCommerce Native Hosting. `proxies/with-routes` caches redirects and storefront status through the KV abstraction in `lib/kv`, which previously had no Cloudflare option and silently degraded to an in-process memory cache that isn't shared across edge invocations. When the per-project `CATALYST_ROUTES_KV` namespace is bound to the Worker, `createKVAdapter` now selects a `CloudflareKvAdapter`. Vercel Runtime Cache still takes priority, and Upstash/memory remain the fallbacks; the binding is duck-typed so an unrelated env var of the same name falls through cleanly instead of throwing.
+
+- [#3202](https://github.com/bigcommerce/catalyst/pull/3202) [`715f481`](https://github.com/bigcommerce/catalyst/commit/715f4813ae758be091ff23487ee69159d8044ee0) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Upgrade Next.js from 16.2.11 to 16.3.4.
+
+  16.3.3 patches two critical advisories: unauthenticated remote code execution on Windows-hosted servers ([GHSA-p293-qw3h-jr36](https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36)) and unauthenticated remote code execution in the Image Optimization API when AVIF files are used ([GHSA-2xp9-vwfh-vxw4](https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4)). 16.3.4 re-enables AVIF image optimization after that fix.
+
+  Also picked up are backported fixes for optimistic-routing bugs that caused repeated prefetch loops, a Nav Inspector request loop on repeat captures, and cache-entry reuse that discards only entries predating a tag revalidation rather than all of them.
+
+- [#3209](https://github.com/bigcommerce/catalyst/pull/3209) [`f74c1f9`](https://github.com/bigcommerce/catalyst/commit/f74c1f949dec42eec8d86f75f0742cf48c756571) Thanks [@mfaris9](https://github.com/mfaris9)! - Product detail page date modifiers now respect the date limits set in the control panel. A Date option's earliest date, latest date, and limit mode (earliest only, latest only, or a range) now disable out-of-range days in the PDP date picker, instead of letting shoppers pick any date.
+
+## 1.11.0
+
+### Minor Changes
+
+- [#3173](https://github.com/bigcommerce/catalyst/pull/3173) [`06775b2`](https://github.com/bigcommerce/catalyst/commit/06775b2709e203af6bc14719c3e3aa9ad18290f5) Thanks [@jordanarldt](https://github.com/jordanarldt)! - Resolve merchant-configured locale subfolders at runtime instead of baking them in at build time, so custom locale paths such as `/fr-fr` and `/es-es` resolve consistently.
+
+  Previously the subfolder table was captured during `next build` into `build-config.json` and statically imported by `i18n/locales.ts`. If the control panel returned incomplete locale data at build time, every localized URL 404'd until the next deploy — and because next-intl treats a custom subfolder as a _replacement_ for the bare locale code rather than an alias, there was no fallback: `/es-es` simply did not match any route.
+
+  ## What changed
+  - Added `i18n/locale-config.ts`, which reads locale configuration from BigCommerce at runtime and caches it in KV with the same stale-while-revalidate pattern as `proxies/with-routes.ts`. An empty locale list is never cached.
+  - **Locales are no longer written to `build-config.json` at all.** A build-time snapshot of merchant-configurable data is either redundant or wrong, and using it as a fallback risked silently serving the stale URL space this change exists to fix. Runtime is now the only source. A warm cache rides out a BigCommerce outage; only a cold cache combined with an unreachable API cannot resolve, and that returns `503` with `retry-after` rather than a 404 that would tell crawlers these pages are gone.
+  - `proxies/with-intl.ts` now builds its next-intl middleware per request from that configuration. It resolves the configuration once per request and forwards it to the render as `x-bc-locale-routing`, so rendering and redirects reuse exactly what resolved the inbound URL rather than fetching it again — the two can't disagree, and there is no extra round trip. It also passes the matched subfolder as `x-bc-locale-prefix`, which `proxies/with-routes.ts` strips instead of recomputing from build-time data.
+  - `Link`, `useRouter` and `usePathname` now read the runtime configuration through a new provider in `app/[locale]/layout.tsx`, so generated URLs agree with what the proxy resolves. Canonical and hreflang URLs in `lib/seo/canonical.ts` and the header locale switcher do the same.
+  - `redirect` and `permanentRedirect` moved from `~/i18n/routing` to `~/i18n/navigation-server` and are now `async` — `await` them. This keeps the GraphQL client and KV out of the client bundle.
+  - Removed `generateStaticParams` from `app/[locale]/layout.tsx`, which only added a build-time dependency on the locale list — every route under `[locale]` already renders on demand because the tree reads cookies. The build's route rendering modes are unchanged.
+  - `i18n/locales.ts` is removed. The locale gates in `i18n/request.ts` and `app/[locale]/layout.tsx` now use the runtime list, and the sitemap/robots/favicon routes resolve the default channel directly instead of routing through a locale.
+
+  Behaviour change for channel-per-locale stores: `robots.txt`, the sitemap index and the favicon now resolve the default channel directly rather than via the default locale, because they run outside the proxy and have no request locale. Stores that map their default locale to a non-default channel in `channels.config.ts` will see those three served from `BIGCOMMERCE_CHANNEL_ID`.
+
+  Locale detection is unchanged: a shopper is still redirected to their language's subfolder, and an explicit choice in the locale switcher still wins on later requests.
+
+  Fixed along the way:
+  - `/xmlsitemap.php` and `/admin` redirected through the locale-aware helper, resolving to `/<locale>/sitemap.xml` and `/<locale>/` whenever every locale carries a prefix. The sitemap target was a 404, since `/sitemap.xml` is excluded from the proxy. Both now use plain redirects; `/admin` also no longer performs an uncached GraphQL request on every hit to a route that is disabled by default.
+  - Losing the KV cache no longer takes the storefront down. A read failure now degrades to a fetch instead of being treated as unresolvable.
+  - Locale configuration is validated where it is fetched, so an unusable value can no longer be cached and then rejected on every read, which would have silently turned the cache into a per-request refetch. Subfolders are normalized (surrounding slashes and whitespace trimmed), and locale codes and prefixes are constrained to safe URL shapes.
+  - An unrecognised locale returns 404 rather than 500 when no message file exists for it.
+  - A locale whose configured subfolder cannot be expressed in a URL is now skipped individually, with an error logged, instead of making the whole configuration unusable.
+  - The Playwright URL fixtures asserted `/<locale-code>/...` instead of the configured subfolder, so alternate-locale assertions were wrong for any store whose subfolder differs from its locale code (for example `de` served at `/de-de`). They now resolve the subfolder from the store.
+
+- [#3062](https://github.com/bigcommerce/catalyst/pull/3062) [`98b618f`](https://github.com/bigcommerce/catalyst/commit/98b618fb8ab76de86e598ead56032263bd2217bc) Thanks [@bc-yaroslav-zhmutskyi](https://github.com/bc-yaroslav-zhmutskyi)! - Add Wallet Payment buttons integration for cart page
+
+  ## What changed
+  - Render wallet payment buttons (e.g. PayPal) on the cart page when payment wallets are configured for the cart.
+  - Added `getPaymentWallets`, `getPaymentWalletWithInitializationData`, and `getCurrencyData` GraphQL queries in the cart's `page-data.ts` to fetch configured wallets and their initialization data.
+  - Added a `ClientWalletButtons` client component (`core/components/wallet-buttons`) that streams wallet init options and renders a container per wallet button.
+  - Added a `WalletButtonsInitializer` (`core/lib/wallet-buttons`) that lazily injects the BigCommerce Checkout SDK loader script and initializes each wallet button against the `/graphql` endpoint, with an `InitializationError` for missing loader.
+  - Wired `walletButtonsInitOptions` and `cartId` through the cart section component, and exposed `getCurrencyData` currency formatting details.
+  - Extended the GraphQL proxy (`with-graphql-proxy.ts` / `proxy.ts`) to support Checkout SDK wallet-button requests.
+  - Added `NEXT_PUBLIC_CHECKOUT_SDK_DEV_URL` to `.env.example` to optionally override the Checkout SDK loader URL in development.
+  - Added e2e coverage (`wallet-buttons.spec.ts`) verifying the loader script and wallet button containers render only when wallets are configured.
+
+### Patch Changes
+
+- [#3181](https://github.com/bigcommerce/catalyst/pull/3181) [`20b55e0`](https://github.com/bigcommerce/catalyst/commit/20b55e050d33beca85c163eef7fa517a8334b47e) Thanks [@animesh1987](https://github.com/animesh1987)! - Display an error message and disable Add to Cart when the requested quantity exceeds available-to-sell (on-hand + backorder allowance) on the PDP.
+
+- [#3181](https://github.com/bigcommerce/catalyst/pull/3181) [`20b55e0`](https://github.com/bigcommerce/catalyst/commit/20b55e050d33beca85c163eef7fa517a8334b47e) Thanks [@animesh1987](https://github.com/animesh1987)! - Only show the "ready to ship" quantity message in the cart when part of the line item is also backordered. Previously it appeared any time `showQuantityOnHand` was enabled and any quantity was on hand, even for fully in-stock items where the message added no useful information.
+
+- [#3182](https://github.com/bigcommerce/catalyst/pull/3182) [`eb38614`](https://github.com/bigcommerce/catalyst/commit/eb38614915058d751bb834ec74274ac679a766c7) Thanks [@parthshahp](https://github.com/parthshahp)! - Fix consent-gated cookies being withheld on stores that have cookie consent disabled. c15t grants every consent category client-side when consent is disabled, but only in its in-memory store, so no consent cookie is ever written and server-side checks treated the shopper as having declined — silently dropping the selected currency and preventing the `catalyst.visitorId` / `catalyst.visitId` cookies from being set. Server-side consent checks now fall back to the store's cookie-consent setting when no consent cookie is present: on stores with consent disabled, consent is implicitly granted, so the analytics proxy starts visits on the first request and the currency preference persists.
+
+- [#3176](https://github.com/bigcommerce/catalyst/pull/3176) [`332aa76`](https://github.com/bigcommerce/catalyst/commit/332aa76e41bf988d734acecaafeb40dc9f674dc1) Thanks [@jorgemoya](https://github.com/jorgemoya)! - Expire entries in the in-memory KV layer after 60 seconds. `lib/kv` keeps a per-process `MemoryKvAdapter` in front of whichever shared adapter is selected (Cloudflare KV, Upstash, Vercel Runtime Cache) and skips the shared store whenever memory holds every requested key. Those entries never expired, so once a process had seen a key it stopped consulting the shared store for it entirely. Refreshes were then driven solely by the `expiryTime` each caller embeds in the cached value — and that path refetches from the **origin**, not from the shared store. So every process independently refetched on a clock starting from whenever it first cached the key, rather than picking up a value another process had already fetched and shared. Cached data was never wrong, but origin requests and cache writes scaled with process count. Capacity is also raised from 500 to 4096 entries, since cache keys include the query string and so accumulate faster than the number of real paths suggests.
+
+- [#3171](https://github.com/bigcommerce/catalyst/pull/3171) [`0c49112`](https://github.com/bigcommerce/catalyst/commit/0c49112e9363468b517122c620891ac5666ecc76) Thanks [@chanceaclark](https://github.com/chanceaclark)! - Fix session cookie deletion being silently broken after logout. `stripSessionCookieExpiry` was stripping `Expires` from all session token `Set-Cookie` headers, including deletion directives (empty value + `Expires=past`). This turned cookie deletions into permanent empty-value session cookies, so the browser never removed them and stale cookies accumulated across login/logout cycles.
+
+- [#3174](https://github.com/bigcommerce/catalyst/pull/3174) [`f647d91`](https://github.com/bigcommerce/catalyst/commit/f647d91cc0284d64d768aaebb5531cc1bec3c803) Thanks [@jordanarldt](https://github.com/jordanarldt)! - Fix the product page `og:image` tag pointing at an unfetchable URL. `ProductPageMetadataQuery` requested `urlTemplate`, which returns a URL containing a literal `{:size}` placeholder that the `<Image>` CDN loader substitutes at render time. `generateMetadata` has no such loader, so the placeholder was emitted verbatim into the Open Graph tag.
+
+  ## Migration
+
+  In `core/app/[locale]/(default)/product/[slug]/page-data.ts`, update the `defaultImage` selection in `ProductPageMetadataQuery` to request a concrete URL:
+
+  ```diff
+    defaultImage {
+      altText
+  -   url: urlTemplate(lossy: true)
+  +   url(width: 1200, lossy: true)
+    }
+  ```
+
+  `width: 1200` matches the Open Graph and `summary_large_image` recommendation. Height is omitted intentionally — the stencil resizer fits the image inside the given box rather than cropping, so requesting `1200x630` would return a smaller square image for a square product photo.
+
+- [#3081](https://github.com/bigcommerce/catalyst/pull/3081) [`50a7263`](https://github.com/bigcommerce/catalyst/commit/50a7263d00e82720146877ea97073d821f3418b5) Thanks [@mfaris9](https://github.com/mfaris9)! - Fix Account Registration validating State/Province as required for countries without any states (e.g., Algeria). The register page now queries per-country state data from BigCommerce and hides the State/Province field entirely when the selected country has no states.
+
+- [#3188](https://github.com/bigcommerce/catalyst/pull/3188) [`96bb3c3`](https://github.com/bigcommerce/catalyst/commit/96bb3c3101d23b7a3e5396e612c94c2f9ff64416) Thanks [@bc-svc-local](https://github.com/bc-svc-local)! - Update translations.
+
+- Updated dependencies [[`be1967c`](https://github.com/bigcommerce/catalyst/commit/be1967ce85e2e71bf2cf8e0c0837aad66e423ceb)]:
+  - @bigcommerce/catalyst-client@1.0.3
+
 ## 1.10.1
 
 ### Patch Changes

@@ -5,17 +5,19 @@
  * Downloads use the shared CLI cache so subsequent runs are offline.
  */
 
+import { confirm } from '@inquirer/prompts';
 import { execa } from 'execa';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 // Windows holds git file locks longer than the default 10 s hook timeout.
 vi.setConfig({ hookTimeout: 60_000 });
 
 import { downloadCore, parseRef, upgrade } from './upgrade';
 
+vi.mock('@inquirer/prompts', () => ({ confirm: vi.fn() }));
 vi.mock('../lib/telemetry', () => ({ getTelemetry: () => ({ track: vi.fn() }) }));
 vi.mock('../lib/logger', () => ({
   consola: { log: vi.fn(), success: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() },
@@ -34,6 +36,10 @@ const TIMEOUT = 120_000;
 
 const createdDirs: string[] = [];
 let originalCwd: string;
+// vitest.setup.ts pins stdin to non-interactive; opt back in for the branches
+// that are TTY-gated, and reset in afterEach.
+const setTty = (value: boolean) =>
+  Object.defineProperty(process.stdin, 'isTTY', { value, configurable: true });
 
 // JSON.parse returns `any`; centralise the unsafe-return suppression here.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-return
@@ -53,9 +59,44 @@ beforeEach(() => {
 
 afterEach(async () => {
   process.chdir(originalCwd);
+  setTty(false);
+  vi.mocked(confirm).mockReset();
   vi.restoreAllMocks();
   await Promise.all(
     createdDirs
+      .splice(0)
+      .map((d) => rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })),
+  );
+});
+
+// Each tag is downloaded once and copied from, since re-extracting ~600 files per
+// test dominated this suite's runtime on Windows. Tests must only read the seed.
+const seedTrees = new Map<string, Promise<string>>();
+const seedDirs: string[] = [];
+
+function seedTree(ref: string): Promise<string> {
+  const cached = seedTrees.get(ref);
+
+  if (cached) return cached;
+
+  const tree = (async () => {
+    const root = await mkdtemp(join(tmpdir(), 'upgrade-action-seed-'));
+    const dir = join(root, 'core');
+
+    seedDirs.push(root);
+    await downloadCore(REPO, ref, dir);
+
+    return dir;
+  })();
+
+  seedTrees.set(ref, tree);
+
+  return tree;
+}
+
+afterAll(async () => {
+  await Promise.all(
+    seedDirs
       .splice(0)
       .map((d) => rm(d, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })),
   );
@@ -81,10 +122,7 @@ async function setup163Project(
   opts: { withCatalystRef?: boolean } = {},
 ): Promise<string> {
   const { withCatalystRef = true } = opts;
-  const baseDir = join(root, 'base');
-
-  await downloadCore(REPO, BASE_REF, baseDir);
-
+  const baseDir = await seedTree(BASE_REF);
   const projectDir = join(root, 'project');
 
   await cp(baseDir, projectDir, { recursive: true });
@@ -220,9 +258,7 @@ test(
   'running upgrade from inside core/ resolves to the git root and applies correctly',
   async () => {
     const root = await mkTmp();
-    const baseDir = join(root, 'base');
-
-    await downloadCore(REPO, BASE_REF, baseDir);
+    const baseDir = await seedTree(BASE_REF);
 
     // Nested layout: Catalyst package lives under <projectRoot>/core/.
     const projectRoot = join(root, 'project');
@@ -314,10 +350,7 @@ test(
   '--ref flag upgrades a makeswift integration family project to the target tag',
   async () => {
     const root = await mkTmp();
-    const baseDir = join(root, 'base');
-
-    await downloadCore(REPO, MAKESWIFT_BASE_REF, baseDir);
-
+    const baseDir = await seedTree(MAKESWIFT_BASE_REF);
     const projectDir = join(root, 'project');
 
     await cp(baseDir, projectDir, { recursive: true });
@@ -338,6 +371,67 @@ test(
     const updated = parseJson(await readFile(pkgPath, 'utf-8'));
 
     expect(updated.catalyst).toMatchObject({ ref: MAKESWIFT_TARGET_REF });
+  },
+  TIMEOUT,
+);
+
+// ── workspace-protocol dependency migration ──────────────────────────────────
+// A project seeded straight from the tarball still carries `workspace:^`, which
+// is exactly the monorepo-structure case: `catalyst create` never rewrote it.
+
+const CLIENT = '@bigcommerce/catalyst-client';
+
+const readDeps = async (projectDir: string): Promise<Record<string, string>> => {
+  const pkg = parseJson(await readFile(join(projectDir, 'package.json'), 'utf-8'));
+
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return pkg.dependencies as Record<string, string>;
+};
+
+// The gate is `stampedPkg && (--yes || (isTTY && confirm))`; these four rows walk it.
+test.each([
+  ['accepting the prompt migrates', [TARGET_VERSION], true, true, '^1.0.2'],
+  ['declining the prompt keeps workspace:', [TARGET_VERSION], true, false, 'workspace:^'],
+  ['--yes migrates without prompting', [TARGET_VERSION, '--yes'], true, undefined, '^1.0.2'],
+  ['a non-interactive run keeps workspace:', [TARGET_VERSION], false, undefined, 'workspace:^'],
+] as const)(
+  '%s',
+  async (_name, argv, tty, confirmValue, expected) => {
+    const root = await mkTmp();
+    const projectDir = await setup163Project(root);
+
+    expect((await readDeps(projectDir))[CLIENT]).toBe('workspace:^');
+
+    setTty(tty);
+
+    if (confirmValue !== undefined) vi.mocked(confirm).mockResolvedValue(confirmValue);
+
+    process.chdir(projectDir);
+    await upgrade.parseAsync([...argv], { from: 'user' });
+
+    expect((await readDeps(projectDir))[CLIENT]).toBe(expected);
+    expect(confirm).toHaveBeenCalledTimes(confirmValue === undefined ? 0 : 1);
+  },
+  TIMEOUT,
+);
+
+test(
+  '--dry-run reports the workspace: references without rewriting them',
+  async () => {
+    const root = await mkTmp();
+    const projectDir = await setup163Project(root);
+
+    setTty(true);
+
+    process.chdir(projectDir);
+    await upgrade.parseAsync([TARGET_VERSION, '--dry-run'], { from: 'user' });
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect((await readDeps(projectDir))[CLIENT]).toBe('workspace:^');
+
+    const status = (await execa('git', ['status', '--porcelain'], { cwd: projectDir })).stdout;
+
+    expect(status.trim()).toBe('');
   },
   TIMEOUT,
 );

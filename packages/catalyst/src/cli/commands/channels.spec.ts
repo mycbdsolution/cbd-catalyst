@@ -4,7 +4,17 @@ import Conf from 'conf';
 import { http, HttpResponse } from 'msw';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeAll, describe, expect, MockInstance, test, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  MockInstance,
+  test,
+  vi,
+} from 'vitest';
 
 import { server } from '../../../tests/mocks/node';
 import { consola } from '../lib/logger';
@@ -116,6 +126,33 @@ describe('channels', () => {
 
     expect(create).toBeDefined();
     expect(create?.description()).toContain('Create a new Catalyst storefront channel');
+  });
+
+  test('exposes info, create, link and update', () => {
+    expect(channels.commands.map((cmd) => cmd.name()).sort()).toEqual([
+      'create',
+      'info',
+      'link',
+      'update',
+    ]);
+  });
+
+  test('defaults to info so bare `channels` reports the current state', async () => {
+    mockSelect.mockResolvedValueOnce(2);
+
+    await program.parseAsync([
+      'node',
+      'catalyst',
+      'channels',
+      '--store-hash',
+      storeHash,
+      '--access-token',
+      accessToken,
+    ]);
+
+    expect(consola.success).toHaveBeenCalledWith(
+      expect.stringContaining('Channel "Catalyst Storefront" (2)'),
+    );
   });
 });
 
@@ -628,5 +665,575 @@ describe('channels create', () => {
       additionalLocales: ['es'],
     });
     expect(consola.success).toHaveBeenCalledWith(expect.stringContaining('Created channel 42'));
+  });
+});
+
+describe('channels checkout URLs', () => {
+  const sitePath = 'https://:apiHost/stores/:storeHash/v3/channels/:channelId/site';
+  const checkoutPath = `${sitePath}/checkout-url`;
+
+  const credentials = ['--store-hash', storeHash, '--access-token', accessToken];
+
+  const run = (...args: string[]) =>
+    program.parseAsync(['node', 'catalyst', 'channels', ...args, ...credentials]);
+
+  test('shows the storefront, canonical and checkout URLs for a channel', async () => {
+    await run('info', '--channel-id', '2');
+
+    expect(consola.log).toHaveBeenCalledWith(expect.stringContaining('https://example.com'));
+    expect(consola.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://store-abc-1.mybigcommerce.com'),
+    );
+    expect(consola.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://checkout.example.com'),
+    );
+    expect(exitMock).toHaveBeenCalledWith(0);
+  });
+
+  // An inherited checkout URL is the failure mode this command exists to make
+  // visible, so the explanation must appear rather than a bare URL list.
+  test('explains the fallback when the channel has no checkout URL of its own', async () => {
+    server.use(
+      http.get(sitePath, () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            url: 'https://storefront.example.com',
+            channel_id: 2,
+            ssl_status: null,
+            is_checkout_url_customized: false,
+            urls: [
+              { url: 'https://storefront.example.com', type: 'primary' },
+              { url: 'https://unrelated.mybigcommerce.com', type: 'checkout' },
+            ],
+          },
+        }),
+      ),
+    );
+
+    await run('info', '--channel-id', '2');
+
+    expect(consola.info).toHaveBeenCalledWith(
+      expect.stringContaining("checkout uses the default channel's primary URL"),
+    );
+  });
+
+  test('prints (none) when the site has no checkout URL at all', async () => {
+    server.use(
+      http.get(sitePath, () =>
+        HttpResponse.json({
+          data: { id: 1, url: 'https://storefront.example.com', channel_id: 2, urls: [] },
+        }),
+      ),
+    );
+
+    await run('info', '--channel-id', '2');
+
+    expect(consola.log).toHaveBeenCalledWith(expect.stringContaining('(none)'));
+  });
+
+  test('prompts for the channel when --channel-id is omitted', async () => {
+    mockSelect.mockResolvedValueOnce(2);
+
+    await run();
+
+    expect(mockSelect).toHaveBeenCalledTimes(1);
+    expect(consola.success).toHaveBeenCalledWith(
+      expect.stringContaining('Channel "Catalyst Storefront" (2)'),
+    );
+  });
+
+  // `info` only reads, so it must not borrow `channels update`'s picker copy.
+  test('the info picker does not describe itself as an update', async () => {
+    mockSelect.mockResolvedValueOnce(2);
+
+    await run('info');
+
+    expect(mockSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Select a channel.' }),
+    );
+  });
+
+  test('update --checkout-url sets the checkout URL', async () => {
+    let putBody: unknown;
+    let putChannelId: string | undefined;
+
+    server.use(
+      http.put(checkoutPath, async ({ request, params }) => {
+        putBody = await request.json();
+        putChannelId = String(params.channelId);
+
+        return HttpResponse.json({
+          data: {
+            id: 1,
+            url: 'https://example.com',
+            channel_id: 2,
+            is_checkout_url_customized: true,
+            urls: [
+              { url: 'https://example.com', type: 'primary' },
+              { url: 'https://checkout.example.com', type: 'checkout' },
+            ],
+          },
+        });
+      }),
+    );
+
+    await run('update', '--channel-id', '2', '--checkout-url', 'https://checkout.example.com');
+
+    expect(putChannelId).toBe('2');
+    expect(putBody).toEqual({ url: 'https://checkout.example.com' });
+    expect(consola.success).toHaveBeenCalledWith(
+      expect.stringContaining('checkout URL to https://checkout.example.com'),
+    );
+    expect(exitMock).toHaveBeenCalledWith(0);
+  });
+
+  test('update --checkout-url accepts a bare hostname and normalises a path', async () => {
+    let putBody: unknown;
+
+    server.use(
+      http.put(checkoutPath, async ({ request }) => {
+        putBody = await request.json();
+
+        return HttpResponse.json({ data: { id: 1, url: 'https://example.com', channel_id: 2 } });
+      }),
+    );
+
+    await run('update', '--channel-id', '2', '--checkout-url', 'checkout.example.com/some/path');
+
+    expect(putBody).toEqual({ url: 'https://checkout.example.com' });
+  });
+
+  // Shoppers may try checkout as soon as the command finishes, so it doesn't
+  // finish before the certificate the write provisions has issued.
+  test('update --checkout-url waits for a managed-zone certificate', async () => {
+    let probed = false;
+
+    server.use(
+      http.head('https://c.project-one.catalyst-sandbox.store/', () => {
+        probed = true;
+
+        return HttpResponse.json(null, { status: 302 });
+      }),
+    );
+
+    await run(
+      'update',
+      '--channel-id',
+      '2',
+      '--checkout-url',
+      'c.project-one.catalyst-sandbox.store',
+    );
+
+    expect(probed).toBe(true);
+    expect(consola.success).toHaveBeenCalledWith(
+      'c.project-one.catalyst-sandbox.store is serving checkout.',
+    );
+  });
+
+  test('update --checkout-url warns when the domain is not serving a certificate yet', async () => {
+    server.use(http.head('https://checkout.example.com/', () => HttpResponse.error()));
+
+    await run('update', '--channel-id', '2', '--checkout-url', 'checkout.example.com');
+
+    expect(consola.warn).toHaveBeenCalledWith(
+      expect.stringContaining("checkout.example.com isn't serving a certificate yet"),
+    );
+    expect(exitMock).toHaveBeenCalledWith(0);
+  });
+
+  test('update rejects a non-https checkout URL before calling the API', async () => {
+    let called = false;
+
+    server.use(
+      http.put(checkoutPath, () => {
+        called = true;
+
+        return HttpResponse.json({ data: {} });
+      }),
+    );
+
+    await expect(
+      run('update', '--channel-id', '2', '--checkout-url', 'http://checkout.example.com'),
+    ).rejects.toThrow('must use https');
+    expect(called).toBe(false);
+  });
+
+  test('update rejects an unparseable checkout URL', async () => {
+    await expect(run('update', '--channel-id', '2', '--checkout-url', 'https://')).rejects.toThrow(
+      'is not a valid URL',
+    );
+  });
+
+  test('update --remove-checkout-url unsets the checkout URL', async () => {
+    let deleted = false;
+
+    server.use(
+      http.delete(checkoutPath, () => {
+        deleted = true;
+
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await run('update', '--channel-id', '2', '--remove-checkout-url');
+
+    expect(deleted).toBe(true);
+    expect(consola.success).toHaveBeenCalledWith(expect.stringContaining('shared checkout domain'));
+    expect(exitMock).toHaveBeenCalledWith(0);
+  });
+
+  // The domain checkout falls back to belongs to the default channel, so it
+  // can't be predicted before the delete — it has to be reported afterwards.
+  test('update --remove-checkout-url reports where checkout landed', async () => {
+    server.use(
+      http.delete(checkoutPath, () => new HttpResponse(null, { status: 204 })),
+      http.get(sitePath, () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            url: 'https://www.example.com',
+            channel_id: 2,
+            is_checkout_url_customized: false,
+            urls: [
+              { url: 'https://www.example.com', type: 'primary' },
+              { url: 'https://store-abc-1.mybigcommerce.com', type: 'checkout' },
+            ],
+          },
+        }),
+      ),
+    );
+
+    await run('update', '--channel-id', '2', '--remove-checkout-url');
+
+    expect(consola.success).toHaveBeenCalledWith(expect.stringContaining('shared checkout domain'));
+    expect(consola.log).toHaveBeenCalledWith(
+      expect.stringContaining('https://store-abc-1.mybigcommerce.com'),
+    );
+    // The inherited domain is unrelated to the storefront, so it also warns.
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining("default channel's domain"));
+  });
+
+  test('remove stays quiet when the shared checkout domain still matches', async () => {
+    server.use(
+      http.delete(checkoutPath, () => new HttpResponse(null, { status: 204 })),
+      http.get(sitePath, () =>
+        HttpResponse.json({
+          data: {
+            id: 1,
+            url: 'https://www.example.com',
+            channel_id: 2,
+            is_checkout_url_customized: false,
+            urls: [
+              { url: 'https://www.example.com', type: 'primary' },
+              { url: 'https://checkout.example.com', type: 'checkout' },
+            ],
+          },
+        }),
+      ),
+    );
+
+    await run('remove', '--channel-id', '2');
+
+    expect(consola.warn).not.toHaveBeenCalled();
+  });
+
+  // Commander enforces this via `Option.conflicts`. It exits 1, which ends the
+  // process in production; here `process.exit` is mocked, so the action still
+  // runs afterwards — the exit code is the signal worth asserting.
+  test('update refuses --checkout-url together with --remove-checkout-url', async () => {
+    server.use(
+      http.put(checkoutPath, () =>
+        HttpResponse.json({ data: { id: 1, url: 'https://example.com', channel_id: 2 } }),
+      ),
+    );
+
+    await run(
+      'update',
+      '--channel-id',
+      '2',
+      '--checkout-url',
+      'checkout.example.com',
+      '--remove-checkout-url',
+    );
+
+    expect(exitMock).toHaveBeenCalledWith(1);
+  });
+
+  // `--checkout-url` on its own must not drag the caller through the hostname
+  // prompt for a storefront URL they never asked to change.
+  test('update --checkout-url alone leaves the storefront URL untouched', async () => {
+    let sitePutCalled = false;
+
+    server.use(
+      http.put(sitePath, () => {
+        sitePutCalled = true;
+
+        return HttpResponse.json({ data: { id: 1, url: 'https://example.com', channel_id: 2 } });
+      }),
+    );
+
+    await run('update', '--channel-id', '2', '--checkout-url', 'checkout.example.com');
+
+    expect(sitePutCalled).toBe(false);
+    expect(mockSelect).not.toHaveBeenCalled();
+  });
+
+  test('update --remove-checkout-url alone leaves the storefront URL untouched', async () => {
+    let sitePutCalled = false;
+
+    server.use(
+      http.put(sitePath, () => {
+        sitePutCalled = true;
+
+        return HttpResponse.json({ data: { id: 1, url: 'https://example.com', channel_id: 2 } });
+      }),
+      http.delete(checkoutPath, () => new HttpResponse(null, { status: 204 })),
+    );
+
+    await run('update', '--channel-id', '2', '--remove-checkout-url');
+
+    expect(sitePutCalled).toBe(false);
+    expect(mockSelect).not.toHaveBeenCalled();
+  });
+
+  describe('interactive offer to set a checkout URL', () => {
+    const crossDomainSite = {
+      data: {
+        id: 1,
+        url: 'https://canary.example.com',
+        channel_id: 2,
+        is_checkout_url_customized: false,
+        urls: [
+          { url: 'https://canary.example.com', type: 'primary' },
+          { url: 'https://store-abc-1.mybigcommerce.com', type: 'checkout' },
+        ],
+      },
+    };
+
+    const projectsPath = 'https://:apiHost/stores/:storeHash/v3/infrastructure/projects';
+
+    // The managed hosting zone is derived from the store's deployment
+    // hostnames, so this fixture makes `catalyst-sandbox.store` the zone.
+    const withManagedZone = () =>
+      server.use(
+        http.get(projectsPath, () =>
+          HttpResponse.json({
+            data: [
+              {
+                uuid: linkedProjectUuid,
+                name: 'Project One',
+                deployment_hostnames: ['project-one.catalyst-sandbox.store'],
+              },
+            ],
+          }),
+        ),
+      );
+
+    // `canary.example.com` is off that zone, so it reads as the merchant's own
+    // domain and the offer applies.
+    const onOwnDomain = () => {
+      withManagedZone();
+      server.use(http.get(sitePath, () => HttpResponse.json(crossDomainSite)));
+    };
+
+    beforeEach(() => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+    });
+
+    test('offers to set one, then writes the answer', async () => {
+      let putBody: unknown;
+
+      onOwnDomain();
+      server.use(
+        http.put(checkoutPath, async ({ request }) => {
+          putBody = await request.json();
+
+          return HttpResponse.json({
+            data: { id: 1, url: 'https://canary.example.com', channel_id: 2 },
+          });
+        }),
+      );
+
+      mockConfirm.mockResolvedValueOnce(true);
+      mockInput.mockResolvedValueOnce('https://checkout.canary.example.com');
+
+      await run('--channel-id', '2', '--project-uuid', linkedProjectUuid);
+
+      expect(mockConfirm.mock.calls[0]?.[0].message).toContain('Set a checkout URL');
+      expect(putBody).toEqual({ url: 'https://checkout.canary.example.com' });
+    });
+
+    test('declining leaves the channel alone and prints the command to run later', async () => {
+      let putCalled = false;
+
+      onOwnDomain();
+      server.use(
+        http.put(checkoutPath, () => {
+          putCalled = true;
+
+          return HttpResponse.json({ data: {} });
+        }),
+      );
+
+      mockConfirm.mockResolvedValueOnce(false);
+
+      await run('--channel-id', '2', '--project-uuid', linkedProjectUuid);
+
+      expect(putCalled).toBe(false);
+      expect(mockInput).not.toHaveBeenCalled();
+      expect(consola.info).toHaveBeenCalledWith(
+        expect.stringContaining('--channel-id 2 --checkout-url <domain>'),
+      );
+    });
+
+    // The diagnostic prints the exact command instead; the prompt would
+    // default to the wrong prefix.
+    test('does not offer when the storefront is on the managed hosting zone', async () => {
+      withManagedZone();
+      server.use(
+        http.get(sitePath, () =>
+          HttpResponse.json({
+            data: {
+              ...crossDomainSite.data,
+              url: 'https://project-one.catalyst-sandbox.store',
+              urls: [
+                { url: 'https://project-one.catalyst-sandbox.store', type: 'primary' },
+                { url: 'https://store-abc-1.mybigcommerce.com', type: 'checkout' },
+              ],
+            },
+          }),
+        ),
+      );
+
+      await run('--channel-id', '2', '--project-uuid', linkedProjectUuid);
+
+      expect(mockConfirm).not.toHaveBeenCalled();
+      expect(consola.info).toHaveBeenCalledWith(
+        expect.stringContaining('auto-generated deployment hostname'),
+      );
+    });
+
+    test('does not offer when checkout already matches the storefront', async () => {
+      await run('--channel-id', '2', '--project-uuid', linkedProjectUuid);
+
+      expect(mockConfirm).not.toHaveBeenCalled();
+    });
+
+    // `channels checkout-url` has to stay scriptable.
+    test('prints the command instead of prompting when not a TTY', async () => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+      onOwnDomain();
+
+      await run('--channel-id', '2', '--project-uuid', linkedProjectUuid);
+
+      expect(mockConfirm).not.toHaveBeenCalled();
+      expect(consola.info).toHaveBeenCalledWith(
+        expect.stringContaining('--checkout-url https://checkout.canary.example.com'),
+      );
+    });
+  });
+});
+
+// A site URL update deletes the channel's checkout URL, so on the managed zone
+// `channels update` offers the `c.` one straight after.
+describe('channels update checkout offer', () => {
+  const sitePath = 'https://:apiHost/stores/:storeHash/v3/channels/:channelId/site';
+  const checkoutPath = `${sitePath}/checkout-url`;
+  const storefront = 'project-one.catalyst-sandbox.store';
+
+  const run = () =>
+    program.parseAsync([
+      'node',
+      'catalyst',
+      'channels',
+      'update',
+      '--channel-id',
+      '2',
+      '--hostname',
+      storefront,
+      '--project-uuid',
+      linkedProjectUuid,
+      '--store-hash',
+      storeHash,
+      '--access-token',
+      accessToken,
+    ]);
+
+  const site = (primary: string) =>
+    HttpResponse.json({
+      data: {
+        id: 1,
+        url: primary,
+        channel_id: 2,
+        ssl_status: null,
+        is_checkout_url_customized: false,
+        urls: [
+          { url: primary, type: 'primary' },
+          { url: 'https://store-abc-1.mybigcommerce.com', type: 'checkout' },
+        ],
+      },
+    });
+
+  // The first read is the pre-write check, so it sees the old primary.
+  const channelMovingToManagedZone = () => {
+    const writes: { checkout?: unknown } = {};
+
+    server.use(
+      http.get(sitePath, () => site('https://store-abc-2.mybigcommerce.com'), { once: true }),
+      http.get(sitePath, () => site(`https://${storefront}`)),
+      http.put(checkoutPath, async ({ request }) => {
+        writes.checkout = await request.json();
+
+        return HttpResponse.json({ data: { id: 1, url: `https://${storefront}`, channel_id: 2 } });
+      }),
+      http.head(`https://c.${storefront}/`, () => HttpResponse.json(null, { status: 302 })),
+    );
+
+    return writes;
+  };
+
+  beforeEach(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    // Our own CI sets it, and it silences the offer.
+    vi.stubEnv('CI', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+    config.delete('declinedCheckoutUrlChannels');
+  });
+
+  test('offers the managed-zone checkout URL after updating the site URL', async () => {
+    const writes = channelMovingToManagedZone();
+
+    mockConfirm.mockResolvedValueOnce(true);
+
+    await run();
+
+    expect(writes.checkout).toEqual({ url: `https://c.${storefront}` });
+    // The site URL change was asked for, so Enter accepts the follow-up.
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({ default: true }));
+  });
+
+  // Asked for explicitly, so an earlier decline after a deploy doesn't silence
+  // it; declining here is saved so deploys stay quiet.
+  test('asks despite an earlier decline, and saves a new one', async () => {
+    const writes = channelMovingToManagedZone();
+
+    config.set('declinedCheckoutUrlChannels', [2]);
+    mockConfirm.mockResolvedValueOnce(false);
+
+    await run();
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(writes.checkout).toBeUndefined();
+    expect(config.get('declinedCheckoutUrlChannels')).toEqual([2]);
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining("default channel's domain"));
   });
 });

@@ -2,6 +2,7 @@
 
 import { BigCommerceGQLError } from '@bigcommerce/catalyst-client';
 import { parseWithZod } from '@conform-to/zod';
+import { unstable_rethrow as rethrow } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 
@@ -60,6 +61,7 @@ export const changePassword: ChangePasswordAction = async (prevState, formData) 
         input,
       },
       customerAccessToken,
+      fetchOptions: { cache: 'no-store' },
     });
 
     const result = response.data.customer.changePassword;
@@ -75,6 +77,8 @@ export const changePassword: ChangePasswordAction = async (prevState, formData) 
       successMessage: t('passwordUpdated'),
     };
   } catch (error) {
+    rethrow(error);
+
     // eslint-disable-next-line no-console
     console.error(error);
 

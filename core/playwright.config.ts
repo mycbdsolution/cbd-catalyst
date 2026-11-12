@@ -5,6 +5,7 @@ import { testEnv } from '~/tests/environment';
 export default defineConfig({
   testDir: './tests',
   outputDir: './.tests/test-results',
+  globalSetup: './tests/global-setup.ts',
   workers: 1, // TODO: Implement parallel workers in the future
   expect: {
     toHaveScreenshot: {
@@ -32,6 +33,9 @@ export default defineConfig({
       testIgnore: /.*\.mobile\.spec\.ts$/,
       use: {
         ...devices['Desktop Chrome'],
+        // The headless shell reports "HeadlessChrome" in sec-ch-ua, which BigCommerce treats as a
+        // crawler and rejects on checkout session-sync. Full Chromium's headless mode doesn't.
+        channel: 'chromium',
         launchOptions: {
           // When redirected to checkout, BigCommerce blocks preflight requests from a HeadlessChrome user agent.
           // We need to disable web security to allow the preflight request to go through.

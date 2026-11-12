@@ -1,16 +1,28 @@
-import { select } from '@inquirer/prompts';
+import { confirm, select } from '@inquirer/prompts';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import type Conf from 'conf';
 import { colorize } from 'consola/utils';
 
-import { runChannelSiteUrlFlow } from '../lib/channel-site-flow';
+import { canPrompt } from '../lib/can-prompt';
+import {
+  confirmCheckoutCertificate,
+  offerManagedCheckoutUrl,
+  runChannelCheckoutUrlFlow,
+} from '../lib/channel-checkout-url-flow';
+import { resolveChannel, runChannelSiteUrlFlow } from '../lib/channel-site-flow';
 import {
   channelPlatformLabel,
+  type ChannelSiteDetails,
   checkChannelEligibility,
+  deleteChannelCheckoutUrl,
   fetchAvailableChannels,
+  findChannelSiteUrl,
   getChannelInit,
+  getChannelSite,
   sortChannelsByPlatform,
+  updateChannelCheckoutUrl,
 } from '../lib/channels';
+import { normalizeCheckoutUrl, warnOnCrossDomainCheckout } from '../lib/checkout-url';
 import { NoLinkedProjectError } from '../lib/commerce-hosting';
 import { runCreateChannelFlow } from '../lib/create-channel-flow';
 import { parseEnvAssignment } from '../lib/env-config';
@@ -38,6 +50,27 @@ const parseChannelId = (value: string): number => {
 
   return parsed;
 };
+
+// Adapts the shared normalizer to commander, which formats InvalidArgumentError
+// as an option-level usage error.
+const parseCheckoutUrl = (value: string): string => {
+  try {
+    return normalizeCheckoutUrl(value);
+  } catch (error) {
+    throw new InvalidArgumentError(error instanceof Error ? error.message : String(error));
+  }
+};
+
+const CHECKOUT_URL_NOTES = `
+Checkout is hosted by BigCommerce, so a checkout URL must be a domain you have
+pointed at BigCommerce with a certificate provisioned there — not one added with
+\`catalyst domains add\`, which only routes traffic to this project.
+
+BigCommerce also requires the checkout URL to share a main domain with the
+channel's storefront URL, so that sessions carry between the two. A storefront
+on an auto-generated deployment hostname uses its \`c.\` subdomain for checkout;
+BigCommerce issues its certificate when it's set, which takes a few minutes, and
+the command waits for it.`;
 
 // Resolve credentials from flags/env → persisted project config → interactive
 // login (persisting on success). Returns null when the user aborts login.
@@ -74,18 +107,30 @@ async function resolveCredentialsWithLogin(
 
 const update = new Command('update')
   .configureHelp({ showGlobalOptions: true })
-  .description(
-    "Update a BigCommerce channel's site URL to point at one of your project's deployment hostnames.",
-  )
+  .description("Update a BigCommerce channel's storefront and checkout URLs.")
   .addHelpText(
     'after',
-    `
+    `${CHECKOUT_URL_NOTES}
+
+With no flags, this updates the storefront URL and prompts for the hostname.
+Pass a checkout flag on its own to change only the checkout URL, leaving the
+storefront URL alone.
+
 Examples:
   # Pick a channel and hostname interactively
   $ catalyst channels update
 
-  # Skip both prompts
-  $ catalyst channels update --channel-id 123 --hostname my-storefront.example.com`,
+  # Point the storefront at a deployment hostname
+  $ catalyst channels update --channel-id 123 --hostname my-storefront.example.com
+
+  # Set both at once
+  $ catalyst channels update --channel-id 123 --hostname my-storefront.example.com --checkout-url checkout.example.com
+
+  # Change only the checkout URL
+  $ catalyst channels update --channel-id 123 --checkout-url checkout.example.com
+
+  # Fall back to the shared checkout domain
+  $ catalyst channels update --channel-id 123 --remove-checkout-url`,
   )
   .addOption(storeHashOption())
   .addOption(accessTokenOption())
@@ -103,6 +148,18 @@ Examples:
       "Skip the hostname prompt and use this hostname directly. Must be one of the project's deployment_hostnames.",
     ),
   )
+  .addOption(
+    new Option(
+      '--checkout-url <url>',
+      "Set the channel's checkout URL. Must share a main domain with the storefront URL.",
+    ).argParser(parseCheckoutUrl),
+  )
+  .addOption(
+    new Option(
+      '--remove-checkout-url',
+      "Remove the channel's custom checkout URL so checkout falls back to the shared checkout domain.",
+    ).conflicts('checkoutUrl'),
+  )
   .action(async (options) => {
     const config = getProjectConfig();
     const apiHost = resolveApiHost(options, config);
@@ -110,27 +167,96 @@ Examples:
 
     await getTelemetry().identify(storeHash);
 
-    try {
-      await runChannelSiteUrlFlow({
+    // A checkout flag on its own means "change only the checkout URL": going
+    // through the site-URL flow would prompt for a hostname the caller never
+    // asked to change.
+    const touchesCheckout = options.checkoutUrl !== undefined || options.removeCheckoutUrl === true;
+    const updatesSiteUrl = options.hostname !== undefined || !touchesCheckout;
+    // A site URL update deletes the checkout URL, so offer the managed-zone one next.
+    const offersCheckout = updatesSiteUrl && !touchesCheckout && canPrompt();
+    let channelId = options.channelId;
+    let siteHostname: string | undefined;
+
+    if (updatesSiteUrl) {
+      try {
+        ({ channelId, hostname: siteHostname } = await runChannelSiteUrlFlow({
+          storeHash,
+          accessToken,
+          apiHost,
+          projectUuid: options.projectUuid ?? config.get('projectUuid'),
+          channelId: options.channelId,
+          hostname: options.hostname,
+          diagnoseCheckout: !offersCheckout,
+          preserveCheckoutUrl: !touchesCheckout,
+        }));
+      } catch (error) {
+        if (error instanceof NoLinkedProjectError) {
+          consola.info(
+            "When you're ready to create a project, run `catalyst projects create` or re-run `catalyst channels update`.",
+          );
+          process.exit(0);
+
+          // Unreachable in production; prevents continuation when process.exit is mocked in tests.
+          return;
+        }
+
+        throw error;
+      }
+    }
+
+    if (offersCheckout && channelId !== undefined && siteHostname !== undefined) {
+      const offered = await offerManagedCheckoutUrl({
         storeHash,
         accessToken,
         apiHost,
-        projectUuid: options.projectUuid ?? config.get('projectUuid'),
-        channelId: options.channelId,
-        hostname: options.hostname,
+        channelId,
+        storefrontHostname: siteHostname,
+        config,
+        // Explicit command, so an earlier decline doesn't silence it.
+        respectOptOut: false,
+        defaultAnswer: true,
       });
-    } catch (error) {
-      if (error instanceof NoLinkedProjectError) {
-        consola.info(
-          "When you're ready to create a project, run `catalyst projects create` or re-run `catalyst channels update`.",
-        );
-        process.exit(0);
 
-        // Unreachable in production; prevents continuation when process.exit is mocked in tests.
-        return;
+      if (!offered) {
+        warnOnCrossDomainCheckout(await getChannelSite(channelId, storeHash, accessToken, apiHost));
       }
+    }
 
-      throw error;
+    if (touchesCheckout) {
+      const channel =
+        channelId === undefined
+          ? await resolveChannel({ storeHash, accessToken, apiHost })
+          : { id: channelId, name: undefined };
+      const label = channel.name ? `"${channel.name}" (${channel.id})` : String(channel.id);
+
+      if (options.checkoutUrl !== undefined) {
+        const updated = await updateChannelCheckoutUrl(
+          channel.id,
+          options.checkoutUrl,
+          storeHash,
+          accessToken,
+          apiHost,
+        );
+
+        consola.success(`Updated channel ${label} checkout URL to ${options.checkoutUrl}.`);
+        reportChannelSite(updated);
+        warnOnCrossDomainCheckout(updated);
+        await confirmCheckoutCertificate(options.checkoutUrl, { channelId: channel.id });
+      } else {
+        await deleteChannelCheckoutUrl(channel.id, storeHash, accessToken, apiHost);
+
+        consola.success(
+          `Removed the custom checkout URL from channel ${label}. Checkout now uses the shared checkout domain.`,
+        );
+
+        // The fallback domain belongs to the default channel, so it can't be
+        // known before the delete. Re-read the site to show where it landed, and
+        // warn if that's a different domain than the storefront.
+        const reverted = await getChannelSite(channel.id, storeHash, accessToken, apiHost);
+
+        reportChannelSite(reverted);
+        warnOnCrossDomainCheckout(reverted);
+      }
     }
 
     process.exit(0);
@@ -361,12 +487,157 @@ Examples:
     process.exit(0);
   });
 
+const CHECKOUT_LABEL_WIDTH = 'Storefront'.length;
+
+const row = (label: string, value: string) => `  ${label.padEnd(CHECKOUT_LABEL_WIDTH)}  ${value}`;
+
+// `primary` is the merchant-facing storefront, `canonical` BigCommerce's own
+// permanent address, `checkout` where hosted checkout lives — easy to conflate
+// when debugging a redirect.
+function reportChannelSite(site: ChannelSiteDetails): void {
+  const canonical = findChannelSiteUrl(site, 'canonical');
+  const checkout = findChannelSiteUrl(site, 'checkout');
+
+  consola.log(row('Storefront', findChannelSiteUrl(site, 'primary') ?? site.url));
+
+  if (canonical) {
+    consola.log(row('Canonical', canonical));
+  }
+
+  consola.log(row('Checkout', checkout ?? '(none)'));
+
+  if (!site.isCheckoutUrlCustomized) {
+    consola.info(
+      'This channel has no checkout URL of its own, so checkout uses the default ' +
+        "channel's primary URL.",
+    );
+  }
+}
+
+interface ChannelTargetOptions {
+  storeHash?: string;
+  accessToken?: string;
+  apiHost?: string;
+  channelId?: number;
+}
+
+// Resolves credentials and the target channel — the preamble every
+// channel-scoped command below shares.
+async function resolveChannelTarget(options: ChannelTargetOptions) {
+  const config = getProjectConfig();
+  const apiHost = resolveApiHost(options, config);
+  const { storeHash, accessToken } = resolveCredentials(options, config);
+
+  await getTelemetry().identify(storeHash);
+
+  const channel = await resolveChannel({
+    storeHash,
+    accessToken,
+    apiHost,
+    channelId: options.channelId,
+    // Read-only: these commands report on a channel, so the picker must not
+    // say "to update" — the shared default is written for `channels update`.
+    message: 'Select a channel.',
+  });
+
+  return {
+    config,
+    apiHost,
+    storeHash,
+    accessToken,
+    channel,
+    label: channel.name ? `"${channel.name}" (${channel.id})` : String(channel.id),
+  };
+}
+
+const info = new Command('info')
+  .configureHelp({ showGlobalOptions: true })
+  .description("Show a channel's site URLs — storefront, canonical and checkout.")
+  .addHelpText(
+    'after',
+    `${CHECKOUT_URL_NOTES}
+
+Examples:
+  # Pick a channel interactively; the same as bare \`catalyst channels\`
+  $ catalyst channels info
+
+  # Target a channel directly
+  $ catalyst channels info --channel-id 123`,
+  )
+  .addOption(storeHashOption())
+  .addOption(accessTokenOption())
+  .addOption(apiHostOption())
+  .addOption(
+    new Option(
+      '--channel-id <id>',
+      'Skip the channel prompt and target this channel directly.',
+    ).argParser(parseChannelId),
+  )
+  .action(async (options: ChannelTargetOptions) => {
+    const { apiHost, storeHash, accessToken, channel, label } = await resolveChannelTarget(options);
+
+    consola.start('Fetching channel site...');
+
+    const site = await getChannelSite(channel.id, storeHash, accessToken, apiHost);
+
+    consola.success(`Channel ${label}:`);
+    reportChannelSite(site);
+
+    const report = warnOnCrossDomainCheckout(site);
+
+    // The channel and site are already in hand, so offer to fix it rather than
+    // making the user re-run `channels update --checkout-url`. Not on a managed
+    // zone, where the diagnostic printed the command, nor without a TTY.
+    if (report.crossDomain && report.storefrontOnManagedZone !== true) {
+      const suggested = report.suggestion ?? '<domain>';
+
+      if (!process.stdin.isTTY) {
+        consola.info(
+          `Set one with \`catalyst channels update --channel-id ${channel.id} --checkout-url ${suggested}\`.`,
+        );
+        process.exit(0);
+
+        return;
+      }
+
+      const shouldSet = await confirm({
+        message: 'Set a checkout URL for this channel now?',
+        default: true,
+      });
+
+      if (shouldSet) {
+        await runChannelCheckoutUrlFlow({
+          storeHash,
+          accessToken,
+          apiHost,
+          // Already chosen above; don't ask again.
+          channelId: channel.id,
+          channelName: channel.name,
+          storefrontUrl: findChannelSiteUrl(site, 'primary') ?? site.url,
+        });
+
+        process.exit(0);
+
+        return;
+      }
+
+      consola.info(
+        `When you're ready, run \`catalyst channels update --channel-id ${channel.id} --checkout-url <domain>\`.`,
+      );
+    }
+
+    process.exit(0);
+  });
+
 // Resource commands are plural; the singular form stays as an alias so existing
 // scripts and muscle memory keep working.
 export const channels = new Command('channels')
   .alias('channel')
   .configureHelp({ showGlobalOptions: true })
   .description('Manage BigCommerce channels.')
+  // `info` is the default so bare `catalyst channels` reports the current
+  // state, matching how `logs` defaults to `tail`.
+  .addCommand(info, { isDefault: true })
   .addCommand(create)
   .addCommand(link)
   .addCommand(update);

@@ -9,20 +9,25 @@ import { z } from 'zod';
 
 import { assertAuthorized } from '../lib/auth-errors';
 import { loadBuildEnv } from '../lib/build-env';
+import { runChannelCheckoutUrlFlow } from '../lib/channel-checkout-url-flow';
 import { runChannelSiteUrlFlow } from '../lib/channel-site-flow';
 import {
   cleanupCloudflareIncompatibilities,
   NoLinkedProjectError,
+  reconcileOpenNextVersion,
   selectOrCreateInfrastructureProject,
   setupCommerceHosting,
 } from '../lib/commerce-hosting';
+import { deployedChannelId, offerChannelUrlUpdates } from '../lib/deploy-channel-urls';
 import { getDeploymentErrorMessage } from '../lib/deployment-errors';
 import { detectProjectPackageManager } from '../lib/detect-package-manager';
 import {
+  type DeploymentSecret,
   getStoredEnv,
   mergeDeploymentSecrets,
   parseEnvAssignment,
   toDeploymentSecrets,
+  toEnvFileSecrets,
 } from '../lib/env-config';
 import { httpError } from '../lib/http-errors';
 import { installDependencies } from '../lib/install-dependencies';
@@ -192,6 +197,12 @@ export const uploadBundleZip = async (uploadUrl: string) => {
   return true;
 };
 
+const NATIVE_HOSTING_ENV = {
+  type: 'plain_text',
+  key: 'CATALYST_HOSTING',
+  value: 'native',
+} as const;
+
 export const parseEnvironmentVariables = (secretOption?: string[]) => {
   return secretOption?.map((envVar) => {
     const { key, value } = parseEnvAssignment(envVar);
@@ -246,16 +257,42 @@ export const createDeployment = async (
   return data;
 };
 
-export const getDeploymentStatus = async (
+// The events stream closes after 30s, and the deploy job can run for 10 minutes.
+const DEPLOYMENT_STATUS_TIMEOUT_MS = 15 * 60 * 1000;
+const RECONNECT_DELAY_MS = 1000;
+
+// undici rejects with a TypeError ("terminated", "fetch failed") when the socket drops.
+const isNetworkError = (error: unknown) => error instanceof TypeError;
+
+type DeploymentStatusEvent = z.infer<typeof DeploymentStatusSchema>;
+
+const timeoutError = () =>
+  new Error(
+    'Timed out waiting for the deployment to finish. It may still complete in the background.',
+  );
+
+// SSE lines can end in CRLF, LF or CR. A trailing CR may be the first half of a CRLF
+// split across reads, so it is left for the next read.
+const normalizeLineEndings = (text: string, { keepTrailingCr = false } = {}) =>
+  text.replace(keepTrailingCr ? /\r\n|\r(?!$)/g : /\r\n?/g, '\n');
+
+// Joins the `data:` lines of one SSE frame; keep-alive comments have none.
+const frameData = (frame: string) =>
+  frame
+    .split('\n')
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice('data:'.length).trim())
+    .join('\n');
+
+// Reads one connection of the event stream until the server closes it.
+const readDeploymentEvents = async (
   deploymentUuid: string,
   storeHash: string,
   accessToken: string,
   apiHost: string,
-): Promise<string | undefined> => {
-  consola.info('Fetching deployment status...');
-
-  const spinner = yoctoSpinner().start('Fetching...');
-
+  signal: AbortSignal,
+  onEvent: (data: DeploymentStatusEvent) => void,
+) => {
   const response = await fetch(
     `https://${apiHost}/stores/${storeHash}/v3/infrastructure/deployments/${deploymentUuid}/events`,
     {
@@ -266,6 +303,7 @@ export const getDeploymentStatus = async (
         Connection: 'keep-alive',
         'X-Correlation-Id': getTelemetry().correlationId,
       },
+      signal,
     },
   );
 
@@ -281,51 +319,128 @@ export const getDeploymentStatus = async (
     throw new Error('Failed to read event stream.');
   }
 
+  // Ends a stream that stays open past the deadline.
+  signal.addEventListener(
+    'abort',
+    () => {
+      reader.cancel().catch(() => undefined);
+    },
+    { once: true },
+  );
+
   const decoder = new TextDecoder();
-  let done = false;
-  let deploymentHostname: string | undefined;
+  let buffer = '';
 
-  while (!done) {
-    // eslint-disable-next-line no-await-in-loop
-    const { value, done: streamDone } = await reader.read();
-    let json: unknown;
+  const processFrame = (frame: string) => {
+    const event = frameData(frame);
 
-    if (value) {
-      const chunk = decoder.decode(value, { stream: true }).trim();
-      const split = chunk
-        .split('\n\n')
-        .map((s) => s.replace('data:', '').trim())
-        .filter(Boolean);
-
-      // eslint-disable-next-line no-loop-func
-      split.forEach((event) => {
-        try {
-          json = JSON.parse(event);
-        } catch (error) {
-          consola.warn(`Failed to parse event, dropping from stream. Event: ${event}`, error);
-
-          return;
-        }
-
-        const data = DeploymentStatusSchema.parse(json);
-
-        if (data.error) {
-          throw new Error(
-            `Deployment failed (error code ${data.error.code}): ${getDeploymentErrorMessage(data.error.code)}`,
-          );
-        }
-
-        if (data.event && STEPS[data.event.step] !== spinner.text) {
-          spinner.text = STEPS[data.event.step];
-        }
-
-        if (data.deployment_hostnames && data.deployment_hostnames.length > 0) {
-          deploymentHostname = data.deployment_hostnames[0];
-        }
-      });
+    if (!event) {
+      return;
     }
 
-    done = streamDone;
+    let json: unknown;
+
+    try {
+      json = JSON.parse(event);
+    } catch (error) {
+      consola.warn(`Failed to parse event, dropping from stream. Event: ${event}`, error);
+
+      return;
+    }
+
+    onEvent(DeploymentStatusSchema.parse(json));
+  };
+
+  // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const { value, done } = await reader.read();
+
+    if (done) {
+      processFrame(normalizeLineEndings(buffer + decoder.decode()));
+      break;
+    }
+
+    // A frame can span reads, so only complete frames are parsed.
+    const frames = normalizeLineEndings(buffer + decoder.decode(value, { stream: true }), {
+      keepTrailingCr: true,
+    }).split('\n\n');
+
+    buffer = frames.pop() ?? '';
+    frames.forEach(processFrame);
+  }
+};
+
+export const getDeploymentStatus = async (
+  deploymentUuid: string,
+  storeHash: string,
+  accessToken: string,
+  apiHost: string,
+  { timeoutMs = DEPLOYMENT_STATUS_TIMEOUT_MS, reconnectDelayMs = RECONNECT_DELAY_MS } = {},
+): Promise<string | undefined> => {
+  consola.info('Fetching deployment status...');
+
+  const spinner = yoctoSpinner().start('Fetching...');
+  const deadline = Date.now() + timeoutMs;
+  let status: DeploymentStatusEvent['deployment_status'] | undefined;
+  let deploymentHostname: string | undefined;
+
+  const onEvent = (data: DeploymentStatusEvent) => {
+    if (data.error) {
+      throw new Error(
+        `Deployment failed (error code ${data.error.code}): ${getDeploymentErrorMessage(data.error.code)}`,
+      );
+    }
+
+    if (data.deployment_status === 'failed') {
+      throw new Error('Deployment failed.');
+    }
+
+    if (data.event && STEPS[data.event.step] !== spinner.text) {
+      spinner.text = STEPS[data.event.step];
+    }
+
+    if (data.deployment_hostnames && data.deployment_hostnames.length > 0) {
+      deploymentHostname = data.deployment_hostnames[0];
+    }
+
+    status = data.deployment_status;
+  };
+
+  // Each new connection starts with the current state, so reconnecting loses nothing.
+  // eslint-disable-next-line no-constant-condition, @typescript-eslint/no-unnecessary-condition
+  while (true) {
+    const signal = AbortSignal.timeout(Math.max(deadline - Date.now(), 0));
+
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await readDeploymentEvents(deploymentUuid, storeHash, accessToken, apiHost, signal, onEvent);
+    } catch (error) {
+      if (status !== 'completed') {
+        if (signal.aborted) {
+          throw timeoutError();
+        }
+
+        if (!isNetworkError(error)) {
+          throw error;
+        }
+
+        consola.debug('Deployment event stream disconnected.', error);
+      }
+    }
+
+    if (status === 'completed') {
+      break;
+    }
+
+    if (Date.now() >= deadline) {
+      throw timeoutError();
+    }
+
+    consola.debug('Reconnecting to the deployment event stream...');
+
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, reconnectDelayMs));
   }
 
   spinner.success('Deployment completed successfully.');
@@ -337,6 +452,30 @@ export const getDeploymentStatus = async (
   }
 
   return deploymentHostname;
+};
+
+// Precedence: `--secret` > `--env-path` file > `catalyst env add`. The
+// `--env-path` file is sent as bindings, not just baked into the bundle,
+// because bindings override baked values at runtime.
+const resolveDeploymentSecrets = (
+  storedEnv: Record<string, string>,
+  envFileVars: Record<string, string> | undefined,
+  flagSecrets: DeploymentSecret[],
+): DeploymentSecret[] => {
+  const envFileSecrets = toEnvFileSecrets(envFileVars ?? {});
+
+  const overriddenKeys = envFileSecrets
+    .filter(({ key, value }) => key in storedEnv && storedEnv[key] !== value)
+    .filter(({ key }) => !flagSecrets.some((secret) => secret.key === key))
+    .map(({ key }) => key);
+
+  if (overriddenKeys.length > 0) {
+    consola.info(
+      `--env-path overrides values saved with \`catalyst env add\`: ${overriddenKeys.join(', ')}`,
+    );
+  }
+
+  return mergeDeploymentSecrets(toDeploymentSecrets(storedEnv), envFileSecrets, flagSecrets);
 };
 
 export const fetchProject = async (
@@ -377,7 +516,12 @@ export const deploy = new Command('deploy')
     'after',
     `
 Environment variables saved with \`catalyst env add\` are sent automatically on every deploy.
-Use \`--secret\` to set or override a variable for a single run.
+\`--env-path <file>\` overrides them with that file's variables, and \`--secret\` sets or
+overrides a single variable for this run (it wins over both).
+
+Without \`--update-site-url\` or \`--update-checkout-url\`, an interactive deploy offers to
+point the channel's site URL at the deployment and to move its checkout onto the same domain.
+Each is checked on every deploy; declining either is saved in .bigcommerce/project.json.
 
 Example:
   $ catalyst deploy --secret BIGCOMMERCE_STORE_HASH=<YOUR_STORE_HASH> --secret BIGCOMMERCE_STOREFRONT_TOKEN=<YOUR_STOREFRONT_TOKEN>`,
@@ -389,6 +533,10 @@ Example:
   .option(
     '--update-site-url',
     "After a successful deploy, prompt to update a channel's site URL to the new hostname.",
+  )
+  .option(
+    '--update-checkout-url',
+    "After a successful deploy, prompt to update a channel's checkout URL.",
   )
   .addOption(
     new Option(
@@ -477,7 +625,7 @@ Example:
     if (!getProjectState().isTransformed) {
       const shouldSetup = await confirm({
         message:
-          'Your project is not yet set up for Commerce Hosting deployments. Would you like to run the Commerce Hosting setup now?',
+          'Your project is not yet set up for Storefront Hosting deployments. Would you like to run the Storefront Hosting setup now?',
         default: true,
       });
 
@@ -489,7 +637,7 @@ Example:
       const projectDir = process.cwd();
 
       await setupCommerceHosting({ projectDir, projectUuid, storeHash, accessToken });
-      consola.success('Commerce Hosting setup complete.');
+      consola.success('Storefront Hosting setup complete.');
 
       // Match the manager the project was scaffolded with (from its lockfile),
       // rather than forcing pnpm on npm/yarn/bun projects.
@@ -502,7 +650,20 @@ Example:
       // (`core/instrumentation.ts`, `@vercel/otel`). Sweep them on every deploy
       // so the fix lands without forcing a re-link.
       await cleanupCloudflareIncompatibilities(process.cwd());
+
+      // The build path offers to move a stale adapter pin. `--prebuilt` skips
+      // the build, so surface it here instead -- without changing dependencies
+      // the existing bundle was never compiled against.
+      if (options.prebuilt) {
+        const projectDir = process.cwd();
+
+        await reconcileOpenNextVersion(projectDir, await detectProjectPackageManager(projectDir), {
+          canUpgrade: false,
+        });
+      }
     }
+
+    let envFileVars: Record<string, string> | undefined;
 
     if (options.prebuilt) {
       const distDir = join(process.cwd(), '.bigcommerce', 'dist');
@@ -524,14 +685,26 @@ Example:
       }
 
       consola.info('Using existing build output (--prebuilt).');
+
+      // Nothing is built, but `--env-path` still sets the runtime values below.
+      if (options.envPath !== undefined) {
+        envFileVars = loadBuildEnv({ envPath: options.envPath });
+      }
     } else {
       // The build reads storefront env vars (BIGCOMMERCE_*). Load them from the
       // env file(s) before building so both the build and any pre-build checks
       // see them. Skipped for --prebuilt above, which doesn't run the build.
-      loadBuildEnv({ envPath: options.envPath });
+      envFileVars = loadBuildEnv({ envPath: options.envPath });
 
-      await buildCatalystProject(projectUuid, options.wranglerVersion);
+      await buildCatalystProject(projectUuid, options.wranglerVersion, envFileVars);
     }
+
+    const mergedSecrets = resolveDeploymentSecrets(
+      getStoredEnv(config),
+      envFileVars,
+      parseEnvironmentVariables(options.secret) ?? [],
+    );
+    const environmentVariables = [...mergedSecrets, NATIVE_HOSTING_ENV];
 
     await generateBundleZip();
 
@@ -549,15 +722,6 @@ Example:
 
     await uploadBundleZip(uploadSignature.upload_url);
 
-    // Merge persisted env vars (`catalyst env add`) with any inline `--secret`
-    // flags. Inline flags win on conflict, letting users override a stored
-    // value for a single run. Send `undefined` when there's nothing to set so
-    // we preserve the prior payload shape.
-    const flagSecrets = parseEnvironmentVariables(options.secret) ?? [];
-    const persistedSecrets = toDeploymentSecrets(getStoredEnv(config));
-    const mergedSecrets = mergeDeploymentSecrets(persistedSecrets, flagSecrets);
-    const environmentVariables = mergedSecrets.length > 0 ? mergedSecrets : undefined;
-
     const { deployment_uuid: deploymentUuid } = await createDeployment(
       projectUuid,
       uploadSignature.upload_uuid,
@@ -574,26 +738,65 @@ Example:
       apiHost,
     );
 
-    if (!options.updateSiteUrl) {
-      return;
-    }
-
-    try {
-      await runChannelSiteUrlFlow({
-        storeHash,
-        accessToken,
-        apiHost,
-        projectUuid,
-        preferHostname: deploymentHostname,
-      });
-    } catch (error) {
-      // Soft-fail: the deploy already succeeded and the bundle is live. A
-      // non-zero exit here would be misleading.
+    // Soft-failed: the bundle is already live, so a non-zero exit here would
+    // misrepresent what happened.
+    const warnChannelFlowFailed = (what: string, error: unknown) => {
       consola.warn(
-        `Failed to update channel site URL: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to update channel ${what}: ${error instanceof Error ? error.message : String(error)}`,
       );
       consola.info(
         'Update it manually in the control panel, or re-run `catalyst auth login` if the token is missing the store_channel_settings scope.',
       );
+    };
+
+    // Carried over so both flags don't ask which channel twice.
+    let resolvedChannelId: number | undefined;
+
+    // Set by --update-site-url, so checkout pairs with the hostname actually used.
+    let siteHostname: string | undefined;
+
+    if (options.updateSiteUrl) {
+      try {
+        ({ channelId: resolvedChannelId, hostname: siteHostname } = await runChannelSiteUrlFlow({
+          storeHash,
+          accessToken,
+          apiHost,
+          projectUuid,
+          preferHostname: deploymentHostname,
+        }));
+      } catch (error) {
+        warnChannelFlowFailed('site URL', error);
+      }
+    }
+
+    if (options.updateCheckoutUrl) {
+      try {
+        await runChannelCheckoutUrlFlow({
+          storeHash,
+          accessToken,
+          apiHost,
+          channelId: resolvedChannelId,
+          storefrontHostname: siteHostname,
+        });
+      } catch (error) {
+        warnChannelFlowFailed('checkout URL', error);
+      }
+    }
+
+    // Neither flag: offer both. Explicit flags mean the caller already decided.
+    if (!options.updateSiteUrl && !options.updateCheckoutUrl) {
+      try {
+        await offerChannelUrlUpdates({
+          storeHash,
+          accessToken,
+          apiHost,
+          projectUuid,
+          config,
+          deploymentHostname,
+          channelId: deployedChannelId(mergedSecrets),
+        });
+      } catch (error) {
+        warnChannelFlowFailed('URLs', error);
+      }
     }
   });

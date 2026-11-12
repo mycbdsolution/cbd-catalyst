@@ -32,6 +32,7 @@ import { Button } from '@/vibes/soul/primitives/button';
 import { toast } from '@/vibes/soul/primitives/toaster';
 import { useEvents } from '~/components/analytics/events';
 import { usePathname, useRouter } from '~/i18n/routing';
+import { getDisabledDates } from '~/lib/date-field-limits';
 
 import { revalidateCart } from './actions/revalidate-cart';
 import { Field, schema, SchemaRawShape } from './schema';
@@ -175,6 +176,9 @@ export function ProductDetailForm<F extends Field>({
     },
     onSubmit(event, { formData }) {
       event.preventDefault();
+
+      // Use the product from props, not the hidden field, so editing the form can't add a different product.
+      formData.set('id', productId);
 
       startTransition(() => {
         formAction(formData);
@@ -447,6 +451,7 @@ function FormField({
       return (
         <DatePicker
           defaultValue={controls.value}
+          disabledDays={getDisabledDates({ minDate: field.minDate, maxDate: field.maxDate })}
           errors={formField.errors}
           key={formField.id}
           label={field.label}

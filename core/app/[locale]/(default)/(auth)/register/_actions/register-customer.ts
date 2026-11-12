@@ -3,12 +3,14 @@
 import { BigCommerceGQLError } from '@bigcommerce/catalyst-client';
 import { SubmissionResult } from '@conform-to/react';
 import { parseWithZod } from '@conform-to/zod';
+import { unstable_rethrow as rethrow } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 
 import { DynamicFormActionArgs } from '@/vibes/soul/form/dynamic-form';
 import { Field, FieldGroup, schema } from '@/vibes/soul/form/dynamic-form/schema';
 import { signIn } from '~/auth';
+import { getChannelIdFromLocale } from '~/channels.config';
 import { client } from '~/client';
 import { graphql, VariablesOf } from '~/client/graphql';
 import { FieldNameToFieldId } from '~/data-transformers/form-field-transformer/utils';
@@ -398,11 +400,14 @@ export async function registerCustomer<F extends Field>(
       email: input.email,
       password: input.password,
       cartId,
+      channelId: getChannelIdFromLocale(locale),
       // We want to use next/navigation for the redirect as it
       // follows basePath and trailing slash configurations.
       redirect: false,
     });
   } catch (error) {
+    rethrow(error);
+
     // eslint-disable-next-line no-console
     console.error(error);
 
